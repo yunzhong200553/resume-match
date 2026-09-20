@@ -31,7 +31,7 @@
 
 ### 3.1 模块 A：简历构建与基础导出
 
-负责人：陈浩。
+负责人：A1。
 
 业务流程：
 
@@ -62,7 +62,7 @@
 
 ### 3.2 模块 B：JD 匹配与定向优化导出
 
-负责人：陈仕安。
+负责人：A2。
 
 业务流程：
 
@@ -86,7 +86,7 @@ Coze Agent 只负责结构化简历与 JD 的匹配分析和表达优化，不�
 
 ### 3.3 共享导出服务
 
-负责人：陈浩主责，陈仕安通过统一接口调用。
+负责人：A1主责，A2通过统一接口调用。
 
 共享服务接收 `ResumeVersion ID`、模板 ID 和导出格式，不区分版本来自模块 A 还是模块 B。相同版本、模板和格式应生成一致结果。
 
@@ -473,8 +473,8 @@ resume-match/
 
 | 成员 | 主要职责 |
 | --- | --- |
-| 陈浩 | 模块 A、PDF/DOCX 解析、简历版本、共享导出服务、两份模板接入 |
-| 陈仕安 | 模块 B、Mock/Coze 适配、匹配结果、建议确认、拖动调整 |
+| A1 | 模块 A、PDF/DOCX 解析、简历版本、共享导出服务、两份模板接入 |
+| A2 | 模块 B、Mock/Coze 适配、匹配结果、建议确认、拖动调整 |
 | 共同负责 | 公共数据契约、数据库迁移、跨模块联调、测试和课程文档 |
 
 Git 协作约定：
@@ -495,3 +495,81 @@ Git 协作约定：
 - 完整测试计划、测试用例、执行结果与缺陷记录。
 - 演示 PPT 或视频。
 - 包含两位成员持续提交和 Pull Request 记录的 GitHub 仓库。
+
+## 13. 本机运行说明（当前进度：模块 A 后端）
+
+### 13.1 本轮已完成
+
+- 模块 A 后端 13 个接口：简历 CRUD、文本粘贴拆分、PDF/DOCX 导入、草稿与排序、
+  不可变版本、版本快照查询。
+- 共享导出服务：模板渲染 DOCX → LibreOffice Headless 转 PDF，导出记录与授权下载。
+  模块 A 与模块 B 使用同一组端点，输入只有 `ResumeVersion ID`、模板 ID 与格式。
+- 规则优先的中文拆分：模块标题识别、名称/角色/日期三列与三行式条目、
+  「类别：内容」技能行、日期归一化、无法归类内容一律保留并给出提示。
+- 公共契约 `ResumeDocument`（Pydantic，`extra="forbid"`）、统一响应与错误码、
+  requestId 透传、SQLite + Alembic 迁移。
+- 分析适配层接口 `AnalysisProvider` 与 `MockProvider`（模块 B 的接入点，当前无分析路由）。
+- 测试：71 passed / 1 skipped（skip 为需要 LibreOffice 的 PDF 用例）。
+
+设计细节见 `docs/module-a-design.md`、模板契约见 `docs/template-contract.md`、
+测试说明见 `docs/testing.md`、补充错误码见 `docs/api-extensions.md`。
+
+### 13.2 尚未包含
+
+- `frontend/`（React 页面）与 `e2e/`（Playwright）目录。
+- 模块 B 的 `/api/analyses`、`/api/suggestions` 接口与真实 Coze 调用。
+- 第二份 Word 模板：当前只有 `classic_single_column`（格式取自参考简历的脱敏占位版）。
+
+### 13.3 环境要求
+
+- Python 3.10+（本机实测 3.12）。
+- LibreOffice（仅 PDF 导出需要；未安装时 DOCX 导出正常，PDF 返回
+  `EXPORT_DEPENDENCY_MISSING`）。
+
+### 13.4 启动步骤
+
+```powershell
+cd c:\Users\admini\Desktop\softprojiect\resume-match
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+Copy-Item .env.example .env          # 按需修改，切勿提交 .env
+
+cd backend
+..\.venv\Scripts\python.exe -m alembic upgrade head          # 建库（应用启动时也会自动执行）
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
+
+- Swagger 文档：<http://127.0.0.1:8000/docs>
+- 数据位置：`backend/data/resume_match.db`、`backend/storage/{uploads,exports}`
+  （均在 `.gitignore` 覆盖范围内）
+
+### 13.5 导出模板
+
+模板是脱敏占位版，只从参考简历取格式（页面设置、字体、字号、颜色），不含任何个人信息。
+参考简历换了以后重新生成：
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe scripts\build_template_from_resume.py
+```
+
+同时验证导出效果（导入参考简历 → 建版本 → 导出 DOCX）：
+
+```powershell
+Copy-Item "你的参考简历.docx" . -Force   # 仓库根目录，该文件不会入库
+..\.venv\Scripts\python.exe -m pytest tests\test_text_parser.py -k reference -v
+```
+
+### 13.6 测试
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m pytest -q
+```
+
+### 13.7 数据与隐私提醒
+
+- 真实简历、真实 JD、上传原件、导出产物、数据库文件、`.env` 均已加入 `.gitignore`，
+  只保存在本机。
+- Coze Token / Bot ID 只允许通过后端环境变量注入，仓库内只保留 `.env.example`。
+- 仓库内测试样例全部为虚构数据。

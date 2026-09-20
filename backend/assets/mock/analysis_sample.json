@@ -1,0 +1,35 @@
+{
+  "status": "completed",
+  "overallScore": 78,
+  "itemMatches": [
+    {
+      "sectionId": "section_project",
+      "itemId": "item_project_1",
+      "level": "high",
+      "reason": "项目使用 FastAPI，符合 JD 的后端框架要求。"
+    },
+    {
+      "sectionId": "section_experience",
+      "itemId": "item_experience_1",
+      "level": "medium",
+      "reason": "实习经历与 JD 岗位职责部分重合。"
+    }
+  ],
+  "missingRequirements": [
+    {
+      "requirement": "高并发服务经验",
+      "reason": "当前简历中没有可验证的相关描述。"
+    }
+  ],
+  "suggestions": [
+    {
+      "id": "suggestion_1",
+      "sectionId": "section_project",
+      "itemId": "item_project_1",
+      "original": "负责后端开发。",
+      "suggested": "使用 FastAPI 完成后端接口与数据模型开发。",
+      "reason": "突出与 JD 相关且原简历已有依据的技术。",
+      "status": "pending"
+    }
+  ]
+}
