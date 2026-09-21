@@ -1,0 +1,136 @@
+{
+  "data": {
+    "importId": "import_01J8B1L7M3T9F5K2N6P4R8V0QX",
+    "resumeId": "resume_01J8B1L9D7Y2H5C6M3N4B8K0PT",
+    "source": {
+      "type": "docx",
+      "originalFileName": "candidate-resume.docx",
+      "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "sizeBytes": 93248,
+      "pageCount": null
+    },
+    "status": "needs_review",
+    "rawText": "李明\n电话：13900000000\n籍贯：江苏\n2001年9月出生\n\n教育背景\n2019.09-2023.06 某大学 计算机相关专业\n英语六级\n\n项目经验\n2022.03-2022.12 校园服务平台\n后端、数据库，负责接口开发。\n\n技能\nJava、MySQL",
+    "structuredDocument": {
+      "basicInfo": {
+        "name": "李明",
+        "phone": "13900000000",
+        "email": null,
+        "nativePlace": "江苏",
+        "birthDate": "2001-09",
+        "jobTarget": null,
+        "gender": null,
+        "links": []
+      },
+      "sections": [
+        {
+          "id": "section_education_02",
+          "type": "education",
+          "title": "教育背景",
+          "order": 0,
+          "items": [{
+            "id": "item_education_02",
+            "order": 0,
+            "fields": {
+              "school": "某大学",
+              "major": "计算机相关专业",
+              "startDate": "2019-09",
+              "endDate": "2023-06",
+              "gpa": null,
+              "ranking": null,
+              "courses": []
+            },
+            "content": "2019.09-2023.06 某大学 计算机相关专业"
+          }]
+        },
+        {
+          "id": "section_project_02",
+          "type": "project",
+          "title": "项目经验",
+          "order": 1,
+          "items": [{
+            "id": "item_project_02",
+            "order": 0,
+            "fields": {
+              "projectName": "校园服务平台",
+              "role": null,
+              "startDate": "2022-03",
+              "endDate": "2022-12",
+              "techStack": ["后端", "数据库"],
+              "projectLink": null,
+              "responsibilities": "负责接口开发。"
+            },
+            "content": "后端、数据库，负责接口开发。"
+          }]
+        },
+        {
+          "id": "section_skill_02",
+          "type": "skill",
+          "title": "技能",
+          "order": 2,
+          "items": [
+            {"id": "item_skill_04", "order": 0, "fields": {"skillName": "Java", "proficiency": null}, "content": "Java"},
+            {"id": "item_skill_05", "order": 1, "fields": {"skillName": "MySQL", "proficiency": null}, "content": "MySQL"}
+          ]
+        }
+      ]
+    },
+    "fieldRecognitions": [{
+      "targetPath": "sections[1].items[0].fields.techStack",
+      "confidence": "low",
+      "method": "weak_context_keyword",
+      "sourceSpan": {"text": "后端、数据库", "page": null, "startOffset": 80, "endOffset": 86}
+    }],
+    "confidenceSummary": {
+      "overall": "low",
+      "highCount": 14,
+      "mediumCount": 1,
+      "lowCount": 3,
+      "requiredFieldsMissing": [
+        "basicInfo.email",
+        "sections[1].items[0].fields.role",
+        "sections[2].items[0].fields.proficiency",
+        "sections[2].items[1].fields.proficiency"
+      ],
+      "sectionStats": []
+    },
+    "issues": [
+      {
+        "id": "issue_11",
+        "code": "REQUIRED_FIELD_MISSING",
+        "message": "未识别到邮箱，请在确认前补充。",
+        "severity": "error",
+        "targetPath": "basicInfo.email",
+        "candidates": [],
+        "requiresUserAction": true
+      },
+      {
+        "id": "issue_12",
+        "code": "MULTIPLE_CANDIDATES_FOUND",
+        "message": "项目角色存在多个候选值，请确认。",
+        "severity": "warning",
+        "targetPath": "sections[1].items[0].fields.role",
+        "candidates": ["后端", "接口开发"],
+        "requiresUserAction": true
+      },
+      {
+        "id": "issue_13",
+        "code": "UNMAPPED_TEXT_EXISTS",
+        "message": "存在未归类文本，请确认是否需要保留。",
+        "severity": "warning",
+        "targetPath": null,
+        "candidates": [],
+        "requiresUserAction": true
+      }
+    ],
+    "unmappedFragments": [{
+      "id": "fragment_01",
+      "text": "英语六级",
+      "guessedSectionType": "education",
+      "sourceSpan": {"text": "英语六级", "page": null, "startOffset": 58, "endOffset": 62}
+    }],
+    "createdAt": "2026-09-21T11:00:00+08:00",
+    "updatedAt": "2026-09-21T11:00:00+08:00"
+  },
+  "requestId": "req_01J8B1L5S9C7V2M6K3N8P4H0FD"
+}

@@ -1,0 +1,19 @@
+{
+  "data": {
+    "id": "export_20260318_001",
+    "resumeVersionId": "version_2",
+    "templateId": "classic_single_column",
+    "templateVersion": "1.0.0",
+    "format": "pdf",
+    "status": "completed",
+    "fileName": "简历-经典单栏.pdf",
+    "mimeType": "application/pdf",
+    "fileSizeBytes": 184320,
+    "downloadUrl": "/api/exports/export_20260318_001/download",
+    "error": null,
+    "createdAt": "2026-03-18T10:00:00+08:00",
+    "updatedAt": "2026-03-18T10:00:03+08:00",
+    "completedAt": "2026-03-18T10:00:03+08:00"
+  },
+  "requestId": "req_export_status_002"
+}

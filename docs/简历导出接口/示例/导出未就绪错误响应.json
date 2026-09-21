@@ -1,0 +1,11 @@
+{
+  "error": {
+    "code": "EXPORT_NOT_READY",
+    "message": "导出文件尚未生成完成。",
+    "details": {
+      "exportId": "export_20260318_001",
+      "status": "processing"
+    }
+  },
+  "requestId": "req_export_error_004"
+}

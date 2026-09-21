@@ -1,0 +1,33 @@
+{
+  "data": {
+    "id": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+    "resumeVersionId": "version_01J8C2M7T5K9N3P1H6V4F8D0QX",
+    "status": "processing",
+    "jdText": "岗位职责：负责 Python 后端服务及 REST API 开发，参与数据库设计与性能优化。任职要求：熟悉 FastAPI 或同类 Web 框架，熟悉 MySQL、Redis，具备 Docker 使用经验；有高并发服务经验者优先。",
+    "overallScore": null,
+    "scoreLevel": null,
+    "summary": null,
+    "scoreBreakdown": [],
+    "itemMatches": [],
+    "missingRequirements": [],
+    "suggestions": [],
+    "providers": {
+      "scoreAgent": {
+        "status": "running",
+        "attempts": 1,
+        "errorCode": null,
+        "errorMessage": null
+      },
+      "suggestionAgent": {
+        "status": "running",
+        "attempts": 1,
+        "errorCode": null,
+        "errorMessage": null
+      }
+    },
+    "createdAt": "2026-09-21T14:00:00+08:00",
+    "updatedAt": "2026-09-21T14:00:02+08:00",
+    "completedAt": null
+  },
+  "requestId": "req_01J8C3B5M7N9P2H4V6K1F0D8QX"
+}

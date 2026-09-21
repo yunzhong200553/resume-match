@@ -1,0 +1,72 @@
+{
+  "data": {
+    "id": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+    "resumeVersionId": "version_01J8C2M7T5K9N3P1H6V4F8D0QX",
+    "status": "partial_failed",
+    "jdText": "岗位职责：负责 Python 后端服务及 REST API 开发，参与数据库设计与性能优化。任职要求：熟悉 FastAPI 或同类 Web 框架，熟悉 MySQL、Redis，具备 Docker 使用经验；有高并发服务经验者优先。",
+    "overallScore": 78,
+    "scoreLevel": "medium",
+    "summary": "简历与 Python 后端岗位整体中等偏高契合，FastAPI、REST API 和数据库相关经历有明确证据；Redis、MySQL 和高并发经验未得到充分体现。",
+    "scoreBreakdown": [
+      {
+        "dimension": "coreRequirements",
+        "weight": 40,
+        "score": 32,
+        "reason": "Python、FastAPI 和 REST API 要求有明确证据，但 MySQL 和 Redis 未体现。"
+      },
+      {
+        "dimension": "experienceEvidence",
+        "weight": 30,
+        "score": 24,
+        "reason": "工作和项目条目包含后端接口、数据模型和版本管理职责。"
+      },
+      {
+        "dimension": "skillsCoverage",
+        "weight": 20,
+        "score": 16,
+        "reason": "覆盖 Python、FastAPI、SQLite 和 Docker，尚未覆盖 Redis。"
+      },
+      {
+        "dimension": "presentationQuality",
+        "weight": 10,
+        "score": 6,
+        "reason": "相关技术和职责清晰，但缺少可验证的结果描述。"
+      }
+    ],
+    "itemMatches": [
+      {
+        "sectionId": "section_project_01",
+        "itemId": "item_project_01",
+        "level": "high",
+        "matchedRequirements": ["Python", "FastAPI", "数据库设计"],
+        "reason": "项目明确使用 Python、FastAPI 和 SQLite，并承担数据模型开发。"
+      }
+    ],
+    "missingRequirements": [
+      {
+        "requirement": "MySQL 和 Redis 使用经验",
+        "importance": "required",
+        "reason": "JD 明确要求 MySQL 和 Redis，当前简历没有可验证描述。"
+      }
+    ],
+    "suggestions": [],
+    "providers": {
+      "scoreAgent": {
+        "status": "succeeded",
+        "attempts": 1,
+        "errorCode": null,
+        "errorMessage": null
+      },
+      "suggestionAgent": {
+        "status": "failed",
+        "attempts": 1,
+        "errorCode": "PROVIDER_TIMEOUT",
+        "errorMessage": "条目建议服务超时。"
+      }
+    },
+    "createdAt": "2026-09-21T14:00:00+08:00",
+    "updatedAt": "2026-09-21T14:00:30+08:00",
+    "completedAt": "2026-09-21T14:00:30+08:00"
+  },
+  "requestId": "req_01J8C4A5M7N9P2H4V6K1F0D8QX"
+}

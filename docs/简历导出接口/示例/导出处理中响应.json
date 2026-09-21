@@ -1,0 +1,19 @@
+{
+  "data": {
+    "id": "export_20260318_001",
+    "resumeVersionId": "version_2",
+    "templateId": "classic_single_column",
+    "templateVersion": "1.0.0",
+    "format": "pdf",
+    "status": "processing",
+    "fileName": null,
+    "mimeType": null,
+    "fileSizeBytes": null,
+    "downloadUrl": null,
+    "error": null,
+    "createdAt": "2026-03-18T10:00:00+08:00",
+    "updatedAt": "2026-03-18T10:00:01+08:00",
+    "completedAt": null
+  },
+  "requestId": "req_export_status_001"
+}

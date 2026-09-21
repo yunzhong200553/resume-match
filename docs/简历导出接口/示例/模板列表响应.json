@@ -1,0 +1,27 @@
+{
+  "data": {
+    "templates": [
+      {
+        "id": "classic_single_column",
+        "name": "经典单栏",
+        "description": "结构清晰，适合通用岗位和机器解析。",
+        "version": "1.0.0",
+        "layout": "single_column",
+        "supportedFormats": ["docx", "pdf"],
+        "previewUrl": "/api/export-templates/classic_single_column/preview",
+        "isDefault": true
+      },
+      {
+        "id": "modern_two_column",
+        "name": "现代双栏",
+        "description": "侧栏突出技能与基本信息，主栏展示经历。",
+        "version": "1.0.0",
+        "layout": "two_column",
+        "supportedFormats": ["docx", "pdf"],
+        "previewUrl": "/api/export-templates/modern_two_column/preview",
+        "isDefault": false
+      }
+    ]
+  },
+  "requestId": "req_export_templates_001"
+}

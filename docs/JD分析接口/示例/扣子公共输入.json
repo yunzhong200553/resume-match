@@ -1,0 +1,120 @@
+{
+  "analysisId": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+  "resumeVersionId": "version_01J8C2M7T5K9N3P1H6V4F8D0QX",
+  "jdText": "岗位职责：负责 Python 后端服务及 REST API 开发，参与数据库设计与性能优化。任职要求：熟悉 FastAPI 或同类 Web 框架，熟悉 MySQL、Redis，具备 Docker 使用经验；有高并发服务经验者优先。",
+  "resumeDocument": {
+    "basicInfo": {
+      "jobTarget": "后端开发工程师",
+      "links": [
+        {
+          "label": "GitHub",
+          "url": "https://github.com/example"
+        }
+      ]
+    },
+    "sections": [
+      {
+        "id": "section_education_01",
+        "type": "education",
+        "title": "教育经历",
+        "order": 0,
+        "items": [
+          {
+            "id": "item_education_01",
+            "order": 0,
+            "fields": {
+              "school": "浙江大学",
+              "major": "软件工程",
+              "startDate": "2020-09",
+              "endDate": "2024-06",
+              "gpa": "3.7/4.0",
+              "ranking": "前10%",
+              "courses": ["数据结构", "操作系统", "数据库原理"]
+            },
+            "content": "GPA：3.7/4.0，专业排名：前10%；主要课程：数据结构、操作系统、数据库原理。"
+          }
+        ]
+      },
+      {
+        "id": "section_experience_01",
+        "type": "experience",
+        "title": "工作/实习经历",
+        "order": 1,
+        "items": [
+          {
+            "id": "item_experience_01",
+            "order": 0,
+            "fields": {
+              "companyName": "示例科技有限公司",
+              "position": "后端开发工程师",
+              "startDate": "2024-07",
+              "endDate": null,
+              "isCurrent": true,
+              "department": null,
+              "location": null,
+              "manager": null
+            },
+            "content": "负责简历解析服务和 REST API 开发。"
+          }
+        ]
+      },
+      {
+        "id": "section_project_01",
+        "type": "project",
+        "title": "项目经历",
+        "order": 2,
+        "items": [
+          {
+            "id": "item_project_01",
+            "order": 0,
+            "fields": {
+              "projectName": "ResumeMatch",
+              "role": "后端开发",
+              "startDate": "2023-09",
+              "endDate": "2024-03",
+              "techStack": ["Python", "FastAPI", "SQLite"],
+              "projectLink": "https://github.com/example/resume-match",
+              "responsibilities": "负责数据模型、版本管理和导出接口开发。"
+            },
+            "content": "使用 Python、FastAPI 和 SQLite，负责数据模型、版本管理和导出接口开发。"
+          }
+        ]
+      },
+      {
+        "id": "section_skill_01",
+        "type": "skill",
+        "title": "专业技能",
+        "order": 3,
+        "items": [
+          {
+            "id": "item_skill_01",
+            "order": 0,
+            "fields": {
+              "skillName": "Python",
+              "proficiency": "proficient"
+            },
+            "content": "Python-熟练"
+          },
+          {
+            "id": "item_skill_02",
+            "order": 1,
+            "fields": {
+              "skillName": "FastAPI",
+              "proficiency": "proficient"
+            },
+            "content": "FastAPI-熟练"
+          },
+          {
+            "id": "item_skill_03",
+            "order": 2,
+            "fields": {
+              "skillName": "Docker",
+              "proficiency": "basic"
+            },
+            "content": "Docker-了解"
+          }
+        ]
+      }
+    ]
+  }
+}

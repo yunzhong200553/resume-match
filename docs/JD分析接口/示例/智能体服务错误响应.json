@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": "ANALYSIS_PROVIDER_ERROR",
+    "message": "JD 分析服务返回了无效结果。",
+    "details": {
+      "analysisId": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+      "failedProviders": ["suggestionAgent"],
+      "reason": "INVALID_PROVIDER_RESPONSE"
+    }
+  },
+  "requestId": "req_01J8C5D7M9N2P4H6V1K3F0A8QX"
+}

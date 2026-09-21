@@ -1,0 +1,22 @@
+{
+  "data": {
+    "id": "export_20260318_003",
+    "resumeVersionId": "version_2",
+    "templateId": "classic_single_column",
+    "templateVersion": "1.0.0",
+    "format": "pdf",
+    "status": "failed",
+    "fileName": null,
+    "mimeType": null,
+    "fileSizeBytes": null,
+    "downloadUrl": null,
+    "error": {
+      "code": "EXPORT_FAILED",
+      "message": "生成导出文件失败，请重新创建导出任务。"
+    },
+    "createdAt": "2026-03-18T10:10:00+08:00",
+    "updatedAt": "2026-03-18T10:10:03+08:00",
+    "completedAt": null
+  },
+  "requestId": "req_export_status_004"
+}

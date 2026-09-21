@@ -1,0 +1,12 @@
+{
+  "data": {
+    "id": "suggestion_01J8C3D7T2K9N5P4H6V1F0M8QX",
+    "analysisId": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+    "sectionId": "section_project_01",
+    "itemId": "item_project_01",
+    "status": "edited",
+    "editedText": "使用 FastAPI 开发简历解析与版本管理接口，并使用 SQLite 完成结构化数据持久化。",
+    "updatedAt": "2026-09-21T14:05:00+08:00"
+  },
+  "requestId": "req_01J8C5C7M9N2P4H6V1K3F0D8QX"
+}

@@ -1,0 +1,20 @@
+{
+  "suggestions": [
+    {
+      "sectionId": "section_experience_01",
+      "itemId": "item_experience_01",
+      "targetField": "content",
+      "original": "负责简历解析服务和 REST API 开发。",
+      "suggested": "负责简历解析服务与 REST API 的后端开发。",
+      "reason": "突出后端开发职责，并保留原文已有事实。"
+    },
+    {
+      "sectionId": "section_project_01",
+      "itemId": "item_project_01",
+      "targetField": "content",
+      "original": "使用 Python、FastAPI 和 SQLite，负责数据模型、版本管理和导出接口开发。",
+      "suggested": "基于 Python、FastAPI 和 SQLite 开发数据模型、版本管理及导出接口。",
+      "reason": "将已有技术栈与具体职责合并表达，提高条目与 JD 的相关性和可读性。"
+    }
+  ]
+}

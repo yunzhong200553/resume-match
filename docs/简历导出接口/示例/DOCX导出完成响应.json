@@ -1,0 +1,19 @@
+{
+  "data": {
+    "id": "export_20260318_002",
+    "resumeVersionId": "version_2",
+    "templateId": "modern_two_column",
+    "templateVersion": "1.0.0",
+    "format": "docx",
+    "status": "completed",
+    "fileName": "简历-现代双栏.docx",
+    "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "fileSizeBytes": 53248,
+    "downloadUrl": "/api/exports/export_20260318_002/download",
+    "error": null,
+    "createdAt": "2026-03-18T10:05:00+08:00",
+    "updatedAt": "2026-03-18T10:05:02+08:00",
+    "completedAt": "2026-03-18T10:05:02+08:00"
+  },
+  "requestId": "req_export_status_003"
+}

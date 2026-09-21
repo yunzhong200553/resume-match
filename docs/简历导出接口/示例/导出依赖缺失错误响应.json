@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "EXPORT_DEPENDENCY_MISSING",
+    "message": "PDF 转换服务暂不可用，请稍后重试或导出 DOCX。",
+    "details": {
+      "format": "pdf"
+    }
+  },
+  "requestId": "req_export_error_003"
+}
