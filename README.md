@@ -159,7 +159,8 @@ resume-match/
 		"name": "张三",
 		"phone": "13800000000",
 		"email": "example@example.com",
-		"location": "杭州",
+		"nativePlace": "浙江杭州",
+		"birthDate": "2002-06",
 		"jobTarget": "后端开发工程师"
 	},
 	"sections": [
@@ -173,7 +174,7 @@ resume-match/
 					"id": "item_project_1",
 					"order": 0,
 					"fields": {
-						"name": "ResumeMatch",
+						"projectName": "ResumeMatch",
 						"role": "后端开发",
 						"startDate": "2026-09",
 						"endDate": "2026-12"
