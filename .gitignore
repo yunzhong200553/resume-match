@@ -216,3 +216,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- ResumeMatch 本机数据与个人信息（README 第 10 节）----
+# 真实简历 / 真实 JD：只允许放在本机，禁止提交
+/*.docx
+/*.pdf
+/*.doc
+
+# 上传原件、导出产物与本地数据库
+backend/data/
+backend/storage/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# 本机备注
+notes/
+private/
+
