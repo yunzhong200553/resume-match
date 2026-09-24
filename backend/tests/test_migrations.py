@@ -7,7 +7,15 @@ from sqlalchemy import create_engine, inspect
 
 from app.db.migrate import build_alembic_config, run_migrations
 
-EXPECTED_TABLES = {"resumes", "resume_versions", "drafts", "export_records", "alembic_version"}
+EXPECTED_TABLES = {
+    "resumes",
+    "resume_versions",
+    "drafts",
+    "analyses",
+    "suggestions",
+    "export_records",
+    "alembic_version",
+}
 
 
 def _url(tmp_path) -> str:
@@ -52,3 +60,16 @@ def test_resume_version_number_is_unique_per_resume(tmp_path) -> None:
         engine.dispose()
     names = {constraint["name"] for constraint in constraints}
     assert "uq_resume_version_number" in names
+
+
+def test_suggestion_target_is_unique_per_analysis(tmp_path) -> None:
+    url = _url(tmp_path)
+    run_migrations(url)
+
+    engine = create_engine(url)
+    try:
+        constraints = inspect(engine).get_unique_constraints("suggestions")
+    finally:
+        engine.dispose()
+    names = {constraint["name"] for constraint in constraints}
+    assert "uq_suggestion_target" in names

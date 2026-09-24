@@ -63,9 +63,11 @@ def test_unknown_provider_is_rejected() -> None:
     assert "openai" in exc_info.value.message
 
 
-def test_module_a_has_no_analysis_routes(client) -> None:
-    """I-01：禁用分析能力后模块 A 仍完全可用。"""
+def test_module_a_still_works_with_analysis_routes(client) -> None:
+    """I-01：分析路由启用后模块 A 仍完全可用。"""
 
-    assert client.get("/api/analyses/analysis_1").status_code == 404
+    missing = client.get("/api/analyses/analysis_1")
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "ANALYSIS_NOT_FOUND"
     response = client.post("/api/resumes", json={"title": "无分析依赖"})
     assert response.status_code == 201
