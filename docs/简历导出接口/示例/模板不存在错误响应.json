@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "EXPORT_TEMPLATE_NOT_FOUND",
+    "message": "导出模板不存在或当前不可用。",
+    "details": {
+      "templateId": "template_unknown"
+    }
+  },
+  "requestId": "req_export_error_002"
+}

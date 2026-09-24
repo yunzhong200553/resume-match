@@ -1,0 +1,11 @@
+{
+  "error": {
+    "code": "UNSUPPORTED_SCANNED_PDF",
+    "message": "未检测到可提取文本，当前不支持扫描版 PDF。",
+    "details": {
+      "supportedTypes": ["text_pdf", "docx"],
+      "suggestedAction": "请上传文本型 PDF、DOCX，或使用分模块手动录入。"
+    }
+  },
+  "requestId": "req_01J8A7C4K2M9N5P1V6H3F8D0QS"
+}

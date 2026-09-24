@@ -1,0 +1,23 @@
+{
+  "data": {
+    "id": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+    "status": "processing",
+    "retryingProviders": ["suggestionAgent"],
+    "providers": {
+      "scoreAgent": {
+        "status": "succeeded",
+        "attempts": 1,
+        "errorCode": null,
+        "errorMessage": null
+      },
+      "suggestionAgent": {
+        "status": "queued",
+        "attempts": 1,
+        "errorCode": null,
+        "errorMessage": null
+      }
+    },
+    "updatedAt": "2026-09-21T14:01:30+08:00"
+  },
+  "requestId": "req_01J8C4B6M8N2P5H7V9K1F3D0QX"
+}

@@ -16,7 +16,7 @@
 ## 2. 项目范围
 
 - 中文简历和中文 JD。
-- 分模块手动录入和整段文本粘贴。
+- 分模块手动录入。
 - 文本型 PDF、DOCX 文件导入，单文件最大 10 MB。
 - 简历结构化拆分、人工校正、草稿和历史版本。
 - JD 总体匹配分、逐条匹配状态、缺失要求和改进建议。
@@ -43,11 +43,10 @@
 
 1. 创建简历：新建简历名称和基础信息。
 2. 手动录入：通过分模块表单新增、编辑和删除条目。
-3. 文本粘贴：粘贴完整简历文本后执行规则拆分。
-4. 文件导入：从文本型 PDF 或 DOCX 提取文本并拆分。
-5. 拆分校正：用户确认和修正识别结果后才能保存正式版本。
-6. 版本管理：保存草稿、生成不可变版本、查看历史版本。
-7. 基础导出：选择历史版本、模板和文件格式进行导出。
+3. 文件导入：从文本型 PDF 或 DOCX 提取文本并拆分。
+4. 拆分校正：用户确认和修正识别结果后才能保存正式版本。
+5. 版本管理：保存草稿、生成不可变版本、查看历史版本。
+6. 基础导出：选择历史版本、模板和文件格式进行导出。
 
 简历模块包括：
 
@@ -82,7 +81,7 @@
 8. 定向版本：将确认后的内容显式保存为新版本，保留父版本关系。
 9. 定制导出：调用共享导出服务生成针对该 JD 的 DOCX 或 PDF。
 
-Coze Agent 只负责结构化简历与 JD 的匹配分析和表达优化，不参与文件解析和初始简历拆分。模型提出的内容必须通过后端结构校验；缺少事实依据的要求只能作为提示，不得写入简历。
+两个 Coze 智能体分别负责结构化简历与 JD 的契合度分析和条目表达优化，后端并行调用两者。它们不参与文件解析和初始简历拆分。模型提出的内容必须通过后端结构校验；缺少事实依据的要求只能作为提示，不得写入简历。
 
 ### 3.3 共享导出服务
 
@@ -106,9 +105,10 @@ flowchart LR
 		F --> API[FastAPI REST API]
 		API --> DB[(SQLite)]
 		API --> P[PDF/DOCX 解析服务]
-		API --> A[分析适配层]
+		API --> A[分析协调器]
 		A --> M[Mock Provider]
-		A --> C[Coze Agent]
+		A --> C1[Coze 契合度智能体]
+		A --> C2[Coze 条目建议智能体]
 		API --> E[共享导出服务]
 		E --> T[Word 模板]
 		E --> L[LibreOffice]
@@ -159,7 +159,8 @@ resume-match/
 		"name": "张三",
 		"phone": "13800000000",
 		"email": "example@example.com",
-		"location": "杭州",
+		"nativePlace": "浙江杭州",
+		"birthDate": "2002-06",
 		"jobTarget": "后端开发工程师"
 	},
 	"sections": [
@@ -173,7 +174,7 @@ resume-match/
 					"id": "item_project_1",
 					"order": 0,
 					"fields": {
-						"name": "ResumeMatch",
+						"projectName": "ResumeMatch",
 						"role": "后端开发",
 						"startDate": "2026-09",
 						"endDate": "2026-12"
@@ -207,12 +208,18 @@ resume-match/
 `ResumeVersion.source` 取值：
 
 - `manual`：手动录入。
-- `import`：文件或文本拆分。
+- `import`：PDF 或 DOCX 文件拆分。
 - `optimized`：根据 JD 优化形成的新版本。
 
 ## 7. API 接口定义
 
 统一前缀为 `/api`，请求和响应采用 JSON；文件上传使用 `multipart/form-data`，文件下载除外。FastAPI 自动生成 Swagger 文档。
+
+PDF/DOCX 导入的完整接入流程、接口参数、数据结构和 JSON 示例见 [简历导入 API 开发者文档](docs/简历导入接口/文档目录.md)。
+
+JD 输入、双 Coze 智能体调用、契合度评分和条目建议的完整契约见 [JD 分析 API 开发者文档](docs/JD分析接口/文档目录.md)。
+
+模板查询、异步导出任务、状态查询和文件下载的完整契约见 [简历导出 API 开发者文档](docs/简历导出接口/文档目录.md)。
 
 ### 7.1 通用响应和错误
 
@@ -261,7 +268,8 @@ resume-match/
 | GET | `/api/resumes` | 获取历史简历列表 |
 | GET | `/api/resumes/{resumeId}` | 获取简历详情和当前草稿 |
 | POST | `/api/resumes/import` | 上传 PDF/DOCX 并返回待确认结构 |
-| POST | `/api/resumes/parse-text` | 拆分用户粘贴的完整文本 |
+| GET | `/api/imports/{importId}` | 获取待确认的文件导入结果 |
+| POST | `/api/imports/{importId}/confirm` | 确认文件导入结果并写入草稿 |
 | PUT | `/api/resumes/{resumeId}/draft` | 保存草稿和排序 |
 | POST | `/api/resumes/{resumeId}/versions` | 从草稿创建不可变版本 |
 | GET | `/api/resumes/{resumeId}/versions` | 获取历史版本列表 |
@@ -384,23 +392,26 @@ resume-match/
 ```json
 {
 	"data": {
-		"id": "export_1",
+		"id": "export_20260318_001",
 		"resumeVersionId": "version_2",
 		"templateId": "classic_single_column",
+		"templateVersion": "1.0.0",
 		"format": "pdf",
-		"status": "completed",
-		"downloadUrl": "/api/exports/export_1/download"
+		"status": "queued",
+		"downloadUrl": null
 	},
 	"requestId": "req_123"
 }
 ```
+
+创建接口返回 `202 Accepted`。客户端使用 `exportId` 查询状态，仅在 `status=completed` 后下载文件。
 
 ## 8. 页面与交互定义
 
 | 页面 | 核心操作 |
 | --- | --- |
 | 简历列表 | 查看、创建、打开历史简历 |
-| 简历创建 | 分模块填写、粘贴文本、上传文件 |
+| 简历创建 | 分模块填写、上传 PDF/DOCX 文件 |
 | 拆分校正 | 编辑识别结果、新增删除条目、保存版本 |
 | 版本详情 | 查看版本来源、父版本、内容和历史 |
 | JD 分析 | 选择版本、输入 JD、查看分析状态和结果 |

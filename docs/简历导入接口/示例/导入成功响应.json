@@ -1,0 +1,156 @@
+{
+  "data": {
+    "importId": "import_01J8A4Q7M8T2F3K6N9P1R5V0WX",
+    "resumeId": "resume_01J8A4Q9D2Y7H6C3M1N5B8K0PT",
+    "source": {
+      "type": "pdf",
+      "originalFileName": "zhang-san-resume.pdf",
+      "mimeType": "application/pdf",
+      "sizeBytes": 248320,
+      "pageCount": 2
+    },
+    "status": "needs_review",
+    "rawText": "张三\n手机号：13800000000 邮箱：zhangsan@example.com\n籍贯：浙江杭州 出生年月：2002年6月\n求职意向：后端开发工程师\n\n教育经历\n2020.09-2024.06 浙江大学 软件工程\n\n工作/实习经历\n2024.07-至今 示例科技有限公司 后端开发工程师\n负责简历解析服务和 REST API 开发。\n\n项目经历\n2023.09-2024.03 ResumeMatch 后端开发\n使用 Python、FastAPI 和 SQLite，负责数据模型、版本管理和导出接口开发。\n\n专业技能\nPython-熟练；FastAPI-熟练；Docker-了解\n\n证书与奖项\n2023.12 全国大学生计算机设计大赛二等奖\n\n校园经历\n担任软件协会技术部负责人。",
+    "structuredDocument": {
+      "basicInfo": {
+        "name": "张三",
+        "phone": "13800000000",
+        "email": "zhangsan@example.com",
+        "nativePlace": "浙江杭州",
+        "birthDate": "2002-06",
+        "jobTarget": "后端开发工程师",
+        "gender": null,
+        "links": []
+      },
+      "sections": [
+        {
+          "id": "section_education_01",
+          "type": "education",
+          "title": "教育经历",
+          "order": 0,
+          "items": [{
+            "id": "item_education_01",
+            "order": 0,
+            "fields": {
+              "school": "浙江大学",
+              "major": "软件工程",
+              "startDate": "2020-09",
+              "endDate": "2024-06",
+              "gpa": null,
+              "ranking": null,
+              "courses": []
+            },
+            "content": "2020.09-2024.06 浙江大学 软件工程"
+          }]
+        },
+        {
+          "id": "section_experience_01",
+          "type": "experience",
+          "title": "工作/实习经历",
+          "order": 1,
+          "items": [{
+            "id": "item_experience_01",
+            "order": 0,
+            "fields": {
+              "companyName": "示例科技有限公司",
+              "position": "后端开发工程师",
+              "startDate": "2024-07",
+              "endDate": null,
+              "isCurrent": true,
+              "department": null,
+              "location": null,
+              "manager": null
+            },
+            "content": "负责简历解析服务和 REST API 开发。"
+          }]
+        },
+        {
+          "id": "section_project_01",
+          "type": "project",
+          "title": "项目经历",
+          "order": 2,
+          "items": [{
+            "id": "item_project_01",
+            "order": 0,
+            "fields": {
+              "projectName": "ResumeMatch",
+              "role": "后端开发",
+              "startDate": "2023-09",
+              "endDate": "2024-03",
+              "techStack": ["Python", "FastAPI", "SQLite"],
+              "projectLink": null,
+              "responsibilities": "负责数据模型、版本管理和导出接口开发。"
+            },
+            "content": "使用 Python、FastAPI 和 SQLite，负责数据模型、版本管理和导出接口开发。"
+          }]
+        },
+        {
+          "id": "section_skill_01",
+          "type": "skill",
+          "title": "专业技能",
+          "order": 3,
+          "items": [
+            {"id": "item_skill_01", "order": 0, "fields": {"skillName": "Python", "proficiency": "proficient"}, "content": "Python-熟练"},
+            {"id": "item_skill_02", "order": 1, "fields": {"skillName": "FastAPI", "proficiency": "proficient"}, "content": "FastAPI-熟练"},
+            {"id": "item_skill_03", "order": 2, "fields": {"skillName": "Docker", "proficiency": "basic"}, "content": "Docker-了解"}
+          ]
+        },
+        {
+          "id": "section_award_01",
+          "type": "award",
+          "title": "证书与奖项",
+          "order": 4,
+          "items": [{
+            "id": "item_award_01",
+            "order": 0,
+            "fields": {"name": "全国大学生计算机设计大赛二等奖", "awardedAt": "2023-12"},
+            "content": "2023.12 全国大学生计算机设计大赛二等奖"
+          }]
+        },
+        {
+          "id": "section_custom_01",
+          "type": "custom",
+          "title": "校园经历",
+          "order": 5,
+          "items": [{
+            "id": "item_custom_01",
+            "order": 0,
+            "fields": {"moduleTitle": "校园经历", "moduleContent": "担任软件协会技术部负责人。"},
+            "content": "担任软件协会技术部负责人。"
+          }]
+        }
+      ]
+    },
+    "fieldRecognitions": [
+      {
+        "targetPath": "basicInfo.name",
+        "confidence": "high",
+        "method": "document_header_name_pattern",
+        "sourceSpan": {"text": "张三", "page": 1, "startOffset": 0, "endOffset": 2}
+      }
+    ],
+    "confidenceSummary": {
+      "overall": "high",
+      "highCount": 25,
+      "mediumCount": 0,
+      "lowCount": 0,
+      "requiredFieldsMissing": [],
+      "sectionStats": []
+    },
+    "issues": [
+      {
+        "id": "issue_01",
+        "code": "OPTIONAL_FIELD_MISSING",
+        "message": "未识别到性别，可在确认前补充。",
+        "severity": "info",
+        "targetPath": "basicInfo.gender",
+        "candidates": [],
+        "requiresUserAction": false
+      }
+    ],
+    "unmappedFragments": [],
+    "createdAt": "2026-09-21T10:30:00+08:00",
+    "updatedAt": "2026-09-21T10:30:00+08:00"
+  },
+  "requestId": "req_01J8A4Q5S9C7V2M6K3N8P1H0FD"
+}

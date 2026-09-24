@@ -1,0 +1,120 @@
+{
+  "data": {
+    "id": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+    "resumeVersionId": "version_01J8C2M7T5K9N3P1H6V4F8D0QX",
+    "status": "completed",
+    "jdText": "岗位职责：负责 Python 后端服务及 REST API 开发，参与数据库设计与性能优化。任职要求：熟悉 FastAPI 或同类 Web 框架，熟悉 MySQL、Redis，具备 Docker 使用经验；有高并发服务经验者优先。",
+    "overallScore": 78,
+    "scoreLevel": "medium",
+    "summary": "简历与 Python 后端岗位整体中等偏高契合，FastAPI、REST API 和数据库相关经历有明确证据；Redis、MySQL 和高并发经验未得到充分体现。",
+    "scoreBreakdown": [
+      {
+        "dimension": "coreRequirements",
+        "weight": 40,
+        "score": 32,
+        "reason": "Python、FastAPI 和 REST API 要求有明确证据，但 MySQL 和 Redis 未体现。"
+      },
+      {
+        "dimension": "experienceEvidence",
+        "weight": 30,
+        "score": 24,
+        "reason": "工作和项目条目包含后端接口、数据模型和版本管理职责。"
+      },
+      {
+        "dimension": "skillsCoverage",
+        "weight": 20,
+        "score": 16,
+        "reason": "覆盖 Python、FastAPI、SQLite 和 Docker，尚未覆盖 Redis。"
+      },
+      {
+        "dimension": "presentationQuality",
+        "weight": 10,
+        "score": 6,
+        "reason": "相关技术和职责清晰，但缺少可验证的结果描述。"
+      }
+    ],
+    "itemMatches": [
+      {
+        "sectionId": "section_experience_01",
+        "itemId": "item_experience_01",
+        "level": "high",
+        "matchedRequirements": ["后端服务开发", "REST API 开发"],
+        "reason": "工作经历直接包含简历解析服务和 REST API 开发。"
+      },
+      {
+        "sectionId": "section_project_01",
+        "itemId": "item_project_01",
+        "level": "high",
+        "matchedRequirements": ["Python", "FastAPI", "数据库设计"],
+        "reason": "项目明确使用 Python、FastAPI 和 SQLite，并承担数据模型开发。"
+      },
+      {
+        "sectionId": "section_skill_01",
+        "itemId": "item_skill_03",
+        "level": "medium",
+        "matchedRequirements": ["Docker 使用经验"],
+        "reason": "技能条目包含 Docker，但掌握程度仅为了解。"
+      }
+    ],
+    "missingRequirements": [
+      {
+        "requirement": "MySQL 和 Redis 使用经验",
+        "importance": "required",
+        "reason": "JD 明确要求 MySQL 和 Redis，当前简历没有可验证描述。"
+      },
+      {
+        "requirement": "高并发服务经验",
+        "importance": "preferred",
+        "reason": "JD 将高并发经验列为优先条件，当前简历未体现。"
+      }
+    ],
+    "suggestions": [
+      {
+        "id": "suggestion_01J8C3D5T2K9N7P4H6V1F0M8QX",
+        "analysisId": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+        "sectionId": "section_experience_01",
+        "itemId": "item_experience_01",
+        "targetField": "content",
+        "original": "负责简历解析服务和 REST API 开发。",
+        "suggested": "负责简历解析服务与 REST API 的后端开发。",
+        "reason": "突出后端开发职责，并保留原文已有事实。",
+        "status": "pending",
+        "editedText": null,
+        "createdAt": "2026-09-21T14:00:18+08:00",
+        "updatedAt": "2026-09-21T14:00:18+08:00"
+      },
+      {
+        "id": "suggestion_01J8C3D7T2K9N5P4H6V1F0M8QX",
+        "analysisId": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+        "sectionId": "section_project_01",
+        "itemId": "item_project_01",
+        "targetField": "content",
+        "original": "使用 Python、FastAPI 和 SQLite，负责数据模型、版本管理和导出接口开发。",
+        "suggested": "基于 Python、FastAPI 和 SQLite 开发数据模型、版本管理及导出接口。",
+        "reason": "将已有技术栈与具体职责合并表达，提高条目与 JD 的相关性和可读性。",
+        "status": "pending",
+        "editedText": null,
+        "createdAt": "2026-09-21T14:00:18+08:00",
+        "updatedAt": "2026-09-21T14:00:18+08:00"
+      }
+    ],
+    "providers": {
+      "scoreAgent": {
+        "status": "succeeded",
+        "attempts": 1,
+        "errorCode": null,
+        "errorMessage": null
+      },
+      "suggestionAgent": {
+        "status": "succeeded",
+        "attempts": 1,
+        "errorCode": null,
+        "errorMessage": null
+      }
+    },
+    "createdAt": "2026-09-21T14:00:00+08:00",
+    "updatedAt": "2026-09-21T14:00:18+08:00",
+    "completedAt": "2026-09-21T14:00:18+08:00"
+  },
+  "requestId": "req_01J8C3E5M7N9P2H4V6K1F0D8QX"
+}

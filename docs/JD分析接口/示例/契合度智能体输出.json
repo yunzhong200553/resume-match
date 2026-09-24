@@ -1,0 +1,66 @@
+{
+  "overallScore": 78,
+  "scoreLevel": "medium",
+  "summary": "简历与 Python 后端岗位整体中等偏高契合，FastAPI、REST API 和数据库相关经历有明确证据；Redis、MySQL 和高并发经验未得到充分体现。",
+  "scoreBreakdown": [
+    {
+      "dimension": "coreRequirements",
+      "weight": 40,
+      "score": 32,
+      "reason": "Python、FastAPI 和 REST API 要求有明确证据，但 MySQL 和 Redis 未体现。"
+    },
+    {
+      "dimension": "experienceEvidence",
+      "weight": 30,
+      "score": 24,
+      "reason": "工作和项目条目包含后端接口、数据模型和版本管理职责。"
+    },
+    {
+      "dimension": "skillsCoverage",
+      "weight": 20,
+      "score": 16,
+      "reason": "覆盖 Python、FastAPI、SQLite 和 Docker，尚未覆盖 Redis。"
+    },
+    {
+      "dimension": "presentationQuality",
+      "weight": 10,
+      "score": 6,
+      "reason": "相关技术和职责清晰，但缺少可验证的结果描述。"
+    }
+  ],
+  "itemMatches": [
+    {
+      "sectionId": "section_experience_01",
+      "itemId": "item_experience_01",
+      "level": "high",
+      "matchedRequirements": ["后端服务开发", "REST API 开发"],
+      "reason": "工作经历直接包含简历解析服务和 REST API 开发。"
+    },
+    {
+      "sectionId": "section_project_01",
+      "itemId": "item_project_01",
+      "level": "high",
+      "matchedRequirements": ["Python", "FastAPI", "数据库设计"],
+      "reason": "项目明确使用 Python、FastAPI 和 SQLite，并承担数据模型开发。"
+    },
+    {
+      "sectionId": "section_skill_01",
+      "itemId": "item_skill_03",
+      "level": "medium",
+      "matchedRequirements": ["Docker 使用经验"],
+      "reason": "技能条目包含 Docker，但掌握程度仅为了解。"
+    }
+  ],
+  "missingRequirements": [
+    {
+      "requirement": "MySQL 和 Redis 使用经验",
+      "importance": "required",
+      "reason": "JD 明确要求 MySQL 和 Redis，当前简历没有可验证描述。"
+    },
+    {
+      "requirement": "高并发服务经验",
+      "importance": "preferred",
+      "reason": "JD 将高并发经验列为优先条件，当前简历未体现。"
+    }
+  ]
+}

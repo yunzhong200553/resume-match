@@ -1,0 +1,23 @@
+{
+  "data": {
+    "id": "analysis_01J8C3A7T5K9N2P4H6V1F0D8QX",
+    "resumeVersionId": "version_01J8C2M7T5K9N3P1H6V4F8D0QX",
+    "status": "processing",
+    "providers": {
+      "scoreAgent": {
+        "status": "queued",
+        "attempts": 0,
+        "errorCode": null,
+        "errorMessage": null
+      },
+      "suggestionAgent": {
+        "status": "queued",
+        "attempts": 0,
+        "errorCode": null,
+        "errorMessage": null
+      }
+    },
+    "createdAt": "2026-09-21T14:00:00+08:00"
+  },
+  "requestId": "req_01J8C3A5M7N9P2H4V6K1F0D8QX"
+}

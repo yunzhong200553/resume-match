@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "VERSION_NOT_FOUND",
+    "message": "简历版本不存在。",
+    "details": {
+      "versionId": "version_unknown"
+    }
+  },
+  "requestId": "req_export_error_001"
+}
