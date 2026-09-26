@@ -1,8 +1,6 @@
 """持久化实体。
 
-与 README 6.2 对应：Resume、ResumeVersion、Draft、ExportRecord。
-Analysis / Suggestion 属于模块 B 的独立迁移，这里不建表，
-避免两人改动同一迁移文件。
+与 README 6.2 对应：Resume、ResumeVersion、Draft、Analysis、Suggestion、ExportRecord。
 """
 
 from __future__ import annotations
@@ -134,6 +132,74 @@ class Draft(Base):
             "document": self.document,
             "updatedAt": to_iso(self.updated_at),
         }
+
+
+class Analysis(Base):
+    """一次基于不可变简历版本的 JD 分析。"""
+
+    __tablename__ = "analyses"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    resume_version_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("resume_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    jd_text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    overall_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    score_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score_breakdown: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    item_matches: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    missing_requirements: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    provider_states: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow, nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    suggestions: Mapped[list["Suggestion"]] = relationship(
+        back_populates="analysis",
+        cascade="all, delete-orphan",
+        order_by="Suggestion.created_at",
+    )
+
+
+class Suggestion(Base):
+    """分析产生并由用户显式处理的条目建议。"""
+
+    __tablename__ = "suggestions"
+    __table_args__ = (
+        UniqueConstraint(
+            "analysis_id",
+            "section_id",
+            "item_id",
+            "target_field",
+            name="uq_suggestion_target",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    analysis_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("analyses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    section_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    item_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_field: Mapped[str] = mapped_column(String(30), nullable=False)
+    original: Mapped[str] = mapped_column(Text, nullable=False)
+    suggested: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    edited_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow, nullable=False
+    )
+
+    analysis: Mapped[Analysis] = relationship(back_populates="suggestions")
 
 
 class ExportRecord(Base):

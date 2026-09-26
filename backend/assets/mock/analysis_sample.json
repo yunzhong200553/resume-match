@@ -1,35 +1,41 @@
 {
-  "status": "completed",
-  "overallScore": 78,
-  "itemMatches": [
-    {
-      "sectionId": "section_project",
-      "itemId": "item_project_1",
-      "level": "high",
-      "reason": "项目使用 FastAPI，符合 JD 的后端框架要求。"
-    },
-    {
-      "sectionId": "section_experience",
-      "itemId": "item_experience_1",
-      "level": "medium",
-      "reason": "实习经历与 JD 岗位职责部分重合。"
-    }
-  ],
-  "missingRequirements": [
-    {
-      "requirement": "高并发服务经验",
-      "reason": "当前简历中没有可验证的相关描述。"
-    }
-  ],
-  "suggestions": [
-    {
-      "id": "suggestion_1",
-      "sectionId": "section_project",
-      "itemId": "item_project_1",
-      "original": "负责后端开发。",
-      "suggested": "使用 FastAPI 完成后端接口与数据模型开发。",
-      "reason": "突出与 JD 相关且原简历已有依据的技术。",
-      "status": "pending"
-    }
-  ]
+  "scoreAgent": {
+    "overallScore": 78,
+    "scoreLevel": "medium",
+    "summary": "简历与 Python 后端岗位整体中等偏高契合，后端框架和数据库相关经历有明确证据。",
+    "scoreBreakdown": [
+      {"dimension": "coreRequirements", "weight": 40, "score": 32, "reason": "Python、FastAPI 和 REST API 要求有明确证据。"},
+      {"dimension": "experienceEvidence", "weight": 30, "score": 24, "reason": "工作和项目条目包含后端接口与数据模型职责。"},
+      {"dimension": "skillsCoverage", "weight": 20, "score": 16, "reason": "覆盖 Python、FastAPI 和数据库相关技能。"},
+      {"dimension": "presentationQuality", "weight": 10, "score": 6, "reason": "相关技术和职责清晰，但部分描述不够具体。"}
+    ],
+    "itemMatches": [
+      {
+        "sectionId": "section_example",
+        "itemId": "item_example",
+        "level": "high",
+        "matchedRequirements": ["Python", "FastAPI"],
+        "reason": "条目包含与 JD 直接相关的后端技术。"
+      }
+    ],
+    "missingRequirements": [
+      {
+        "requirement": "高并发服务经验",
+        "importance": "preferred",
+        "reason": "当前简历中没有可验证的相关描述。"
+      }
+    ]
+  },
+  "suggestionAgent": {
+    "suggestions": [
+      {
+        "sectionId": "section_example",
+        "itemId": "item_example",
+        "targetField": "content",
+        "original": "示例原文",
+        "suggested": "突出已有职责并优化条目表达。",
+        "reason": "提高条目与 JD 的相关性和可读性。"
+      }
+    ]
+  }
 }
