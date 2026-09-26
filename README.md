@@ -118,11 +118,14 @@ flowchart LR
 
 ```text
 resume-match/
-├─ frontend/                 # React 前端
-├─ backend/                  # FastAPI 后端
-├─ e2e/                      # 端到端测试
+├─ frontend/                 # React 前端（占位，见 frontend/README.md）
+├─ backend/                  # FastAPI 后端（模块 A 已实现）
+├─ e2e/                      # 端到端测试（占位，见 e2e/README.md）
 ├─ docs/                     # 需求、设计、接口和测试报告
+│  └─ pr/                    # PR 描述存档
+├─ private/                  # 本机私人文件（真实简历原件等，不入库）
 ├─ .env.example              # 环境变量示例，不包含真实密钥
+├─ resume-match.code-workspace  # VS Code 工作区（解释器、测试与排除规则）
 └─ README.md
 ```
 
@@ -527,7 +530,7 @@ Git 协作约定：
 
 ### 13.2 尚未包含
 
-- `frontend/`（React 页面）与 `e2e/`（Playwright）目录。
+- `frontend/`（React 页面）与 `e2e/`（Playwright）：目录与说明已建占位，实现尚未开始。
 - 模块 B 的 `/api/analyses`、`/api/suggestions` 接口与真实 Coze 调用。
 - 第二份 Word 模板：当前只有 `classic_single_column`（格式取自参考简历的脱敏占位版）。
 
@@ -567,7 +570,7 @@ cd backend
 同时验证导出效果（导入参考简历 → 建版本 → 导出 DOCX）：
 
 ```powershell
-Copy-Item "你的参考简历.docx" . -Force   # 仓库根目录，该文件不会入库
+Copy-Item "你的参考简历.docx" ..\private\ -Force   # private/ 不入库，脚本会自动查找
 ..\.venv\Scripts\python.exe -m pytest tests\test_text_parser.py -k reference -v
 ```
 
@@ -581,6 +584,6 @@ cd backend
 ### 13.7 数据与隐私提醒
 
 - 真实简历、真实 JD、上传原件、导出产物、数据库文件、`.env` 均已加入 `.gitignore`，
-  只保存在本机。
+  只保存在本机；真实简历原件建议统一放在 `private/`。
 - Coze Token / Bot ID 只允许通过后端环境变量注入，仓库内只保留 `.env.example`。
 - 仓库内测试样例全部为虚构数据。

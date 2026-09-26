@@ -85,7 +85,7 @@ cd backend
 脚本会打印实际提取到的格式，例如：
 
 ```text
-参考简历：...\陈仕安-南京理工大学.docx
+参考简历：...\private\陈仕安-南京理工大学.docx
 提取格式：字体=微软雅黑 标题=16.0pt 正文=10.5pt 颜色=#0F1115
 已生成：...\backend\assets\templates\classic_single_column.docx
 ```
