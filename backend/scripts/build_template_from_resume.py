@@ -59,6 +59,10 @@ def detect_reference_path(explicit: str | None) -> Path | None:
         candidates.append(Path(explicit))
     if settings.reference_resume_path:
         candidates.append(Path(settings.reference_resume_path))
+    # 推荐把参考简历原件放在 private/（已被 .gitignore 覆盖），根目录作为兼容位置
+    private_dir = REPO_ROOT / "private"
+    if private_dir.is_dir():
+        candidates.extend(sorted(private_dir.glob("*.docx")))
     candidates.extend(sorted(REPO_ROOT.glob("*.docx")))
 
     for candidate in candidates:

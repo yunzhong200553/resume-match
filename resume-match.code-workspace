@@ -1,0 +1,37 @@
+// ResumeMatch 工作区配置。
+// 用 VS Code 的 File > Open Workspace from File... 打开本文件，
+// 可以确保资源管理器与搜索的根目录是仓库根，而不是 .git 目录。
+{
+  "folders": [
+    {
+      "name": "resume-match",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "python.analysis.extraPaths": ["backend"],
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.cwd": "${workspaceFolder}/backend",
+    "python.testing.pytestArgs": ["tests"],
+    // 隐藏本机运行产物，只保留源码与文档
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/.pytest_cache": true,
+      "**/*.db": true,
+      "backend/data": true,
+      "backend/storage": true
+    },
+    "search.exclude": {
+      "**/.venv": true,
+      "backend/data": true,
+      "backend/storage": true
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true
+  },
+  "extensions": {
+    "recommendations": ["ms-python.python", "ms-python.vscode-pylance"]
+  }
+}

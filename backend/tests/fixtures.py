@@ -255,9 +255,15 @@ def long_resume_text(repeat: int = 120) -> str:
 
 
 def find_reference_resume(repo_root: Path) -> Path | None:
-    """查找本机参考简历原件（不入库）；找不到时相关用例跳过。"""
+    """查找本机参考简历原件（不入库）；找不到时相关用例跳过。
 
-    for candidate in sorted(repo_root.glob("*.docx")):
-        if not candidate.name.startswith("~$"):
-            return candidate
+    依次扫描 ``private/``（推荐位置）与仓库根目录，忽略 Office 临时文件。
+    """
+
+    for directory in (repo_root / "private", repo_root):
+        if not directory.is_dir():
+            continue
+        for candidate in sorted(directory.glob("*.docx")):
+            if not candidate.name.startswith("~$"):
+                return candidate
     return None
