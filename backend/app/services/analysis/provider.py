@@ -1,49 +1,39 @@
-"""分析提供方接口与 Mock 实现。
-
-契约要点（README 7.3）：``overallScore`` 为 0-100 整数、``level`` 只能为
-high/medium/low、引用的 sectionId/itemId 必须存在于输入版本、建议状态只能是
-pending/accepted/rejected/edited。
-
-Mock 的价值：没有 Coze 凭据也能跑通整条链路，契约测试可用固定 JSON 与 Mock
-输出做双向校验。模块 B 接入真实 Coze 时只需实现同一个 Protocol。
-"""
+"""双分析 Provider 接口与 Mock 实现。"""
 
 from __future__ import annotations
 
 import json
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 from app.core.config import settings
 from app.core.errors import AppError, ErrorCode
 
+ProviderName = Literal["scoreAgent", "suggestionAgent"]
 MOCK_PAYLOAD_FILE = "analysis_sample.json"
 
 
 @runtime_checkable
 class AnalysisProvider(Protocol):
-    """分析提供方必须实现的最小接口。"""
+    """单个分析智能体必须实现的接口。"""
 
-    name: str
+    name: ProviderName
 
-    def analyze(self, *, document: dict[str, Any], jd_text: str) -> dict[str, Any]:
-        """输入简历文档与 JD，返回符合 README 7.3 的标准分析结构。"""
-        ...
+    def analyze(self, *, document: dict[str, Any], jd_text: str) -> dict[str, Any]: ...
 
 
 class MockProvider:
-    """返回固定结构的分析结果，不调用任何外部服务。"""
+    """从固定 JSON 中读取一个智能体的输出。"""
 
-    name = "mock"
-
-    def __init__(self, payload_path: Path | None = None) -> None:
+    def __init__(self, name: ProviderName, payload_path: Path | None = None) -> None:
+        self.name = name
         self.payload_path = payload_path or (settings.mock_dir / MOCK_PAYLOAD_FILE)
 
     def analyze(self, *, document: dict[str, Any], jd_text: str) -> dict[str, Any]:
-        payload = deepcopy(self._load_payload())
-        payload["jdText"] = jd_text
-        self._bind_real_ids(payload, document)
+        del jd_text
+        payload = deepcopy(self._load_payload()[self.name])
+        self._bind_real_items(payload, document)
         return payload
 
     def _load_payload(self) -> dict[str, Any]:
@@ -53,36 +43,49 @@ class MockProvider:
                 f"Mock 数据文件不存在：{self.payload_path}",
             )
         with self.payload_path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+            payload = json.load(handle)
+        if self.name not in payload or not isinstance(payload[self.name], dict):
+            raise AppError(
+                ErrorCode.ANALYSIS_PROVIDER_ERROR,
+                "Mock 数据缺少智能体输出。",
+                details={"provider": self.name},
+            )
+        return payload
 
-    def _bind_real_ids(self, payload: dict[str, Any], document: dict[str, Any]) -> None:
-        """把 Mock 结果里的示例 ID 替换为输入版本中真实存在的 ID。
-
-        这样 Mock 输出同样满足「引用的条目必须存在」这条契约约束。
-        """
-
-        pairs: list[tuple[str, str]] = [
-            (section.get("id", ""), item.get("id", ""))
+    def _bind_real_items(
+        self, payload: dict[str, Any], document: dict[str, Any]
+    ) -> None:
+        items = [
+            (section.get("id", ""), item)
             for section in document.get("sections", [])
             for item in section.get("items", [])
         ]
-        if not pairs:
+        if not items:
             return
 
         for index, match in enumerate(payload.get("itemMatches", [])):
-            match["sectionId"], match["itemId"] = pairs[index % len(pairs)]
+            section_id, item = items[index % len(items)]
+            match["sectionId"] = section_id
+            match["itemId"] = item.get("id", "")
+
+        content_items = [(section_id, item) for section_id, item in items if item.get("content")]
         for index, suggestion in enumerate(payload.get("suggestions", [])):
-            suggestion["sectionId"], suggestion["itemId"] = pairs[index % len(pairs)]
+            if not content_items:
+                break
+            section_id, item = content_items[index % len(content_items)]
+            suggestion["sectionId"] = section_id
+            suggestion["itemId"] = item.get("id", "")
+            suggestion["original"] = item.get("content", "")
 
 
-def get_provider(name: str | None = None) -> AnalysisProvider:
+def get_providers(name: str | None = None) -> tuple[AnalysisProvider, AnalysisProvider]:
     resolved = (name or settings.analysis_provider or "mock").lower()
     if resolved == "mock":
-        return MockProvider()
+        return MockProvider("scoreAgent"), MockProvider("suggestionAgent")
     if resolved == "coze":
         raise AppError(
             ErrorCode.ANALYSIS_PROVIDER_ERROR,
-            "Coze Provider 由模块 B 实现，当前尚未接入。",
+            "Coze Provider 尚未接入。",
             details={"provider": resolved},
         )
     raise AppError(
