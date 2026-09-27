@@ -97,6 +97,72 @@ class ProviderStates(_CamelModel):
     suggestion_agent: ProviderState
 
 
+RetryTarget = Literal["scoreAgent", "suggestionAgent"]
+UpdateSuggestionStatus = Literal["accepted", "rejected", "edited"]
+
+
+class RetryAnalysisRequest(_CamelModel):
+    targets: list[RetryTarget] | None = None
+
+    @field_validator("targets")
+    @classmethod
+    def _validate_targets(
+        cls, value: list[RetryTarget] | None
+    ) -> list[RetryTarget] | None:
+        if value is not None and not value:
+            raise ValueError("targets 显式提供时不得为空")
+        if value is not None and len(value) != len(set(value)):
+            raise ValueError("targets 不得重复")
+        return value
+
+
+class RetryAnalysisResult(_CamelModel):
+    id: NonBlankText
+    status: Literal[AnalysisStatus.PROCESSING]
+    retrying_providers: list[RetryTarget]
+    providers: ProviderStates
+    updated_at: datetime
+
+    @field_validator("updated_at")
+    @classmethod
+    def _normalize_updated_at(cls, value: datetime) -> datetime:
+        return _as_utc(value)
+
+
+class UpdateSuggestionRequest(_CamelModel):
+    status: UpdateSuggestionStatus
+    edited_text: str | None = None
+
+    @field_validator("edited_text", mode="before")
+    @classmethod
+    def _strip_edited_text(cls, value: Any) -> Any:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_edited_text(self) -> "UpdateSuggestionRequest":
+        if self.status == "edited":
+            if self.edited_text is None or not self.edited_text:
+                raise ValueError("edited 状态必须提供非空 editedText")
+        elif self.edited_text is not None:
+            raise ValueError("accepted/rejected 状态的 editedText 必须为 null")
+        return self
+
+
+class UpdateSuggestionResult(_CamelModel):
+    id: NonBlankText
+    analysis_id: NonBlankText
+    section_id: NonBlankText
+    item_id: NonBlankText
+    status: UpdateSuggestionStatus
+    edited_text: str | None
+    updated_at: datetime
+
+    @field_validator("updated_at")
+    @classmethod
+    def _normalize_updated_at(cls, value: datetime) -> datetime:
+        return _as_utc(value)
+
+
 class ScoreDimension(_CamelModel):
     dimension: ScoreDimensionName
     weight: int = Field(gt=0, le=100)

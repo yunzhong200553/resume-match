@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import pytest
+from sqlalchemy import func, select
+
+from app.db.models import Analysis as AnalysisRecord
+from app.services.analysis import service
+from app.services.analysis.provider import get_providers
 
 
 JD_TEXT = "负责 Python 后端服务与 REST API 开发，参与数据库设计和性能优化，熟悉 FastAPI、SQL 和 Docker。"
@@ -12,6 +18,15 @@ JD_TEXT = "负责 Python 后端服务与 REST API 开发，参与数据库设计
 
 def _assert_aware_timestamp(value: str) -> None:
     assert datetime.fromisoformat(value).utcoffset() is not None
+
+
+class FailingProvider:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def analyze(self, *, document: dict[str, Any], jd_text: str) -> dict[str, Any]:
+        del document, jd_text
+        raise RuntimeError("provider failed")
 
 
 def test_create_and_get_processing_analysis(client, resume_factory) -> None:
@@ -130,3 +145,78 @@ def test_get_analysis_rejects_unknown_id(client) -> None:
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "ANALYSIS_NOT_FOUND"
+
+
+def test_retry_reuses_analysis_and_only_runs_failed_provider(
+    client, resume_factory, db_session, monkeypatch
+) -> None:
+    score_provider, suggestion_provider = get_providers("mock")
+    monkeypatch.setattr(
+        service,
+        "get_providers",
+        lambda: (score_provider, FailingProvider("suggestionAgent")),
+    )
+    _, version_id = resume_factory()
+    created = client.post(
+        "/api/analyses",
+        json={"resumeVersionId": version_id, "jdText": JD_TEXT},
+    )
+    analysis_id = created.json()["data"]["id"]
+    before = client.get(f"/api/analyses/{analysis_id}").json()["data"]
+    assert before["status"] == "partial_failed"
+
+    monkeypatch.setattr(
+        service,
+        "get_providers",
+        lambda: (score_provider, suggestion_provider),
+    )
+    retried = client.post(
+        f"/api/analyses/{analysis_id}/retry",
+        json={"targets": ["suggestionAgent"]},
+    )
+
+    assert retried.status_code == 202
+    assert retried.json()["data"]["id"] == analysis_id
+    assert retried.json()["data"]["retryingProviders"] == ["suggestionAgent"]
+    after = client.get(f"/api/analyses/{analysis_id}").json()["data"]
+    assert after["status"] == "completed"
+    assert after["providers"]["scoreAgent"]["attempts"] == 1
+    assert after["providers"]["suggestionAgent"]["attempts"] == 2
+    assert len(after["suggestions"]) == 1
+    count = db_session.scalar(select(func.count()).select_from(AnalysisRecord))
+    assert count == 1
+
+
+def test_retry_rejects_processing_analysis(client, resume_factory, monkeypatch) -> None:
+    monkeypatch.setattr(service, "run_analysis", lambda *_args, **_kwargs: None)
+    _, version_id = resume_factory()
+    created = client.post(
+        "/api/analyses",
+        json={"resumeVersionId": version_id, "jdText": JD_TEXT},
+    )
+
+    response = client.post(
+        f"/api/analyses/{created.json()['data']['id']}/retry",
+        json={},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "ANALYSIS_IN_PROGRESS"
+
+
+def test_retry_rejects_provider_that_did_not_fail(
+    client, resume_factory
+) -> None:
+    _, version_id = resume_factory()
+    created = client.post(
+        "/api/analyses",
+        json={"resumeVersionId": version_id, "jdText": JD_TEXT},
+    )
+
+    response = client.post(
+        f"/api/analyses/{created.json()['data']['id']}/retry",
+        json={"targets": ["scoreAgent"]},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "ANALYSIS_NOT_RETRYABLE"

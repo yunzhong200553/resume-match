@@ -5,11 +5,13 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, ErrorCode
 from app.core.ids import new_id
 from app.db.models import Analysis as AnalysisRecord
+from app.db.models import Draft, Resume
 from app.db.models import Suggestion as SuggestionRecord
 from app.db.models import utcnow
 from app.schemas.analysis import (
@@ -19,11 +21,16 @@ from app.schemas.analysis import (
     ProviderState,
     ProviderStates,
     ProviderStatus,
+    RetryAnalysisResult,
+    RetryTarget,
     ScoreProviderResult,
     Suggestion,
     SuggestionProviderResult,
     SuggestionStatus,
+    UpdateSuggestionResult,
+    UpdateSuggestionStatus,
 )
+from app.schemas.resume_document import ResumeDocument
 from app.services import version_service
 from app.services.analysis.provider import AnalysisProvider, get_providers
 
@@ -71,6 +78,7 @@ def run_analysis(
     db: Session,
     analysis_id: str,
     providers: tuple[AnalysisProvider, AnalysisProvider] | None = None,
+    targets: list[RetryTarget] | None = None,
 ) -> AnalysisRecord:
     analysis = get_analysis(db, analysis_id)
     version = version_service.get_version(db, analysis.resume_version_id)
@@ -82,9 +90,11 @@ def run_analysis(
             ErrorCode.ANALYSIS_PROVIDER_ERROR,
             "必须同时配置 scoreAgent 和 suggestionAgent。",
         )
+    target_names: list[RetryTarget] = targets or ["scoreAgent", "suggestionAgent"]
 
     states = ProviderStates.model_validate(analysis.provider_states)
-    for state in (states.score_agent, states.suggestion_agent):
+    for name in target_names:
+        state = _provider_state(states, name)
         state.status = ProviderStatus.RUNNING
         state.attempts += 1
         state.error_code = None
@@ -96,11 +106,11 @@ def run_analysis(
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {
             name: executor.submit(
-                provider.analyze,
+                provider_by_name[name].analyze,
                 document=document_payload,
                 jd_text=analysis.jd_text,
             )
-            for name, provider in provider_by_name.items()
+            for name in target_names
         }
         outcomes: dict[str, tuple[dict[str, Any] | None, Exception | None]] = {}
         for name, future in futures.items():
@@ -109,58 +119,48 @@ def run_analysis(
             except Exception as exc:
                 outcomes[name] = (None, exc)
 
-    succeeded = 0
-    score_payload, score_error = outcomes["scoreAgent"]
-    try:
-        if score_error is not None:
-            raise score_error
-        score_result = ScoreProviderResult.model_validate(score_payload)
-        _validate_score_references(score_result, document_payload)
-        analysis.overall_score = score_result.overall_score
-        analysis.score_level = score_result.score_level.value
-        analysis.summary = score_result.summary
-        analysis.score_breakdown = [
-            item.model_dump(by_alias=True, mode="json")
-            for item in score_result.score_breakdown
-        ]
-        analysis.item_matches = [
-            item.model_dump(by_alias=True, mode="json") for item in score_result.item_matches
-        ]
-        analysis.missing_requirements = [
-            item.model_dump(by_alias=True, mode="json")
-            for item in score_result.missing_requirements
-        ]
-        _mark_succeeded(states.score_agent)
-        succeeded += 1
-    except Exception as exc:
-        _mark_failed(states.score_agent, exc)
+    if "scoreAgent" in target_names:
+        score_payload, score_error = outcomes["scoreAgent"]
+        try:
+            if score_error is not None:
+                raise score_error
+            score_result = ScoreProviderResult.model_validate(score_payload)
+            _validate_score_references(score_result, document_payload)
+            analysis.overall_score = score_result.overall_score
+            analysis.score_level = score_result.score_level.value
+            analysis.summary = score_result.summary
+            analysis.score_breakdown = [
+                item.model_dump(by_alias=True, mode="json")
+                for item in score_result.score_breakdown
+            ]
+            analysis.item_matches = [
+                item.model_dump(by_alias=True, mode="json")
+                for item in score_result.item_matches
+            ]
+            analysis.missing_requirements = [
+                item.model_dump(by_alias=True, mode="json")
+                for item in score_result.missing_requirements
+            ]
+            _mark_succeeded(states.score_agent)
+        except Exception as exc:
+            _mark_failed(states.score_agent, exc)
 
-    suggestion_payload, suggestion_error = outcomes["suggestionAgent"]
-    try:
-        if suggestion_error is not None:
-            raise suggestion_error
-        suggestion_result = SuggestionProviderResult.model_validate(suggestion_payload)
-        _validate_suggestions(suggestion_result, document_payload)
-        for item in suggestion_result.suggestions:
-            db.add(
-                SuggestionRecord(
-                    id=new_id("suggestion"),
-                    analysis_id=analysis.id,
-                    section_id=item.section_id,
-                    item_id=item.item_id,
-                    target_field=item.target_field,
-                    original=item.original,
-                    suggested=item.suggested,
-                    reason=item.reason,
-                    status=SuggestionStatus.PENDING.value,
-                    edited_text=None,
-                )
-            )
-        _mark_succeeded(states.suggestion_agent)
-        succeeded += 1
-    except Exception as exc:
-        _mark_failed(states.suggestion_agent, exc)
+    if "suggestionAgent" in target_names:
+        suggestion_payload, suggestion_error = outcomes["suggestionAgent"]
+        try:
+            if suggestion_error is not None:
+                raise suggestion_error
+            suggestion_result = SuggestionProviderResult.model_validate(suggestion_payload)
+            _validate_suggestions(suggestion_result, document_payload)
+            _store_new_suggestions(db, analysis.id, suggestion_result)
+            _mark_succeeded(states.suggestion_agent)
+        except Exception as exc:
+            _mark_failed(states.suggestion_agent, exc)
 
+    succeeded = sum(
+        state.status is ProviderStatus.SUCCEEDED
+        for state in (states.score_agent, states.suggestion_agent)
+    )
     analysis.status = (
         AnalysisStatus.COMPLETED.value
         if succeeded == 2
@@ -173,6 +173,152 @@ def run_analysis(
     db.commit()
     db.refresh(analysis)
     return analysis
+
+
+def prepare_retry(
+    db: Session,
+    analysis_id: str,
+    targets: list[RetryTarget] | None = None,
+) -> tuple[AnalysisRecord, list[RetryTarget]]:
+    analysis = get_analysis(db, analysis_id)
+    if analysis.status == AnalysisStatus.PROCESSING.value:
+        raise AppError(
+            ErrorCode.ANALYSIS_IN_PROGRESS,
+            details={"analysisId": analysis_id},
+        )
+
+    states = ProviderStates.model_validate(analysis.provider_states)
+    failed: list[RetryTarget] = [
+        name
+        for name in ("scoreAgent", "suggestionAgent")
+        if _provider_state(states, name).status is ProviderStatus.FAILED
+    ]
+    selected = targets if targets is not None else failed
+    if not selected or any(name not in failed for name in selected):
+        raise AppError(
+            ErrorCode.ANALYSIS_NOT_RETRYABLE,
+            details={"analysisId": analysis_id, "failedProviders": failed},
+        )
+
+    for name in selected:
+        state = _provider_state(states, name)
+        state.status = ProviderStatus.QUEUED
+        state.error_code = None
+        state.error_message = None
+    analysis.status = AnalysisStatus.PROCESSING.value
+    analysis.provider_states = states.model_dump(by_alias=True, mode="json")
+    analysis.completed_at = None
+    db.commit()
+    db.refresh(analysis)
+    return analysis, selected
+
+
+def retry_payload(
+    analysis: AnalysisRecord, retrying_providers: list[RetryTarget]
+) -> dict[str, object]:
+    payload = RetryAnalysisResult(
+        id=analysis.id,
+        status=AnalysisStatus(analysis.status),
+        retrying_providers=retrying_providers,
+        providers=ProviderStates.model_validate(analysis.provider_states),
+        updated_at=analysis.updated_at,
+    )
+    return payload.model_dump(by_alias=True, mode="json")
+
+
+def update_suggestion(
+    db: Session,
+    suggestion_id: str,
+    *,
+    status: UpdateSuggestionStatus,
+    edited_text: str | None,
+) -> SuggestionRecord:
+    suggestion = db.get(SuggestionRecord, suggestion_id)
+    if suggestion is None:
+        raise AppError(
+            ErrorCode.SUGGESTION_NOT_FOUND,
+            details={"suggestionId": suggestion_id},
+        )
+    if suggestion.status != SuggestionStatus.PENDING.value:
+        raise AppError(
+            ErrorCode.SUGGESTION_STATE_CONFLICT,
+            details={"suggestionId": suggestion_id, "status": suggestion.status},
+        )
+
+    analysis = get_analysis(db, suggestion.analysis_id)
+    version = version_service.get_version(db, analysis.resume_version_id)
+    draft = db.execute(
+        select(Draft).where(Draft.resume_id == version.resume_id)
+    ).scalar_one_or_none()
+    document = (
+        ResumeDocument.model_validate(draft.document)
+        if draft is not None and draft.base_version_id == version.id
+        else version_service.load_document(version)
+    )
+    found = document.find_item(suggestion.section_id, suggestion.item_id)
+    if found is None:
+        raise AppError(
+            ErrorCode.VALIDATION_ERROR,
+            "建议引用的原始条目不存在。",
+            details={"suggestionId": suggestion_id},
+        )
+    _, item = found
+    item.content = (
+        suggestion.suggested
+        if status == "accepted"
+        else suggestion.original
+        if status == "rejected"
+        else edited_text or ""
+    )
+
+    changed_at = utcnow()
+    result = db.execute(
+        update(SuggestionRecord)
+        .where(
+            SuggestionRecord.id == suggestion_id,
+            SuggestionRecord.status == SuggestionStatus.PENDING.value,
+        )
+        .values(status=status, edited_text=edited_text, updated_at=changed_at)
+    )
+    if result.rowcount != 1:
+        db.rollback()
+        raise AppError(
+            ErrorCode.SUGGESTION_STATE_CONFLICT,
+            details={"suggestionId": suggestion_id},
+        )
+
+    if draft is None:
+        draft = Draft(
+            id=new_id("draft"),
+            resume_id=version.resume_id,
+            base_version_id=version.id,
+            document=document.to_storage(),
+            updated_at=changed_at,
+        )
+        db.add(draft)
+    else:
+        draft.base_version_id = version.id
+        draft.document = document.to_storage()
+        draft.updated_at = changed_at
+    resume = db.get(Resume, version.resume_id)
+    if resume is not None:
+        resume.updated_at = changed_at
+    db.commit()
+    db.refresh(suggestion)
+    return suggestion
+
+
+def suggestion_update_payload(suggestion: SuggestionRecord) -> dict[str, object]:
+    payload = UpdateSuggestionResult(
+        id=suggestion.id,
+        analysis_id=suggestion.analysis_id,
+        section_id=suggestion.section_id,
+        item_id=suggestion.item_id,
+        status=suggestion.status,
+        edited_text=suggestion.edited_text,
+        updated_at=suggestion.updated_at,
+    )
+    return payload.model_dump(by_alias=True, mode="json")
 
 
 def create_payload(analysis: AnalysisRecord) -> dict[str, object]:
@@ -226,6 +372,41 @@ def analysis_payload(analysis: AnalysisRecord) -> dict[str, object]:
 def _queued_providers() -> ProviderStates:
     queued = ProviderState(status=ProviderStatus.QUEUED, attempts=0)
     return ProviderStates(score_agent=queued, suggestion_agent=queued.model_copy())
+
+
+def _provider_state(states: ProviderStates, name: RetryTarget) -> ProviderState:
+    return states.score_agent if name == "scoreAgent" else states.suggestion_agent
+
+
+def _store_new_suggestions(
+    db: Session,
+    analysis_id: str,
+    result: SuggestionProviderResult,
+) -> None:
+    existing = {
+        (item.section_id, item.item_id, item.target_field)
+        for item in db.execute(
+            select(SuggestionRecord).where(SuggestionRecord.analysis_id == analysis_id)
+        ).scalars()
+    }
+    for item in result.suggestions:
+        target = (item.section_id, item.item_id, item.target_field)
+        if target in existing:
+            continue
+        db.add(
+            SuggestionRecord(
+                id=new_id("suggestion"),
+                analysis_id=analysis_id,
+                section_id=item.section_id,
+                item_id=item.item_id,
+                target_field=item.target_field,
+                original=item.original,
+                suggested=item.suggested,
+                reason=item.reason,
+                status=SuggestionStatus.PENDING.value,
+                edited_text=None,
+            )
+        )
 
 
 def _document_items(document: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
