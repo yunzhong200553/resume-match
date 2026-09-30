@@ -46,3 +46,13 @@ def retry_analysis(
     response = envelope(service.retry_payload(analysis, targets))
     background_tasks.add_task(service.run_analysis, db, analysis.id, None, targets)
     return response
+
+
+@router.post(
+    "/{analysis_id}/versions",
+    status_code=201,
+    summary="保存 optimized 简历版本",
+)
+def create_optimized_version(analysis_id: str, db: DbSession) -> dict[str, Any]:
+    version = service.create_optimized_version(db, analysis_id)
+    return envelope(version.to_payload())

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError, ErrorCode
 from app.core.ids import new_id
 from app.db.models import Analysis as AnalysisRecord
-from app.db.models import Draft, Resume
+from app.db.models import Draft, Resume, ResumeVersion
 from app.db.models import Suggestion as SuggestionRecord
 from app.db.models import utcnow
 from app.schemas.analysis import (
@@ -31,6 +31,7 @@ from app.schemas.analysis import (
     UpdateSuggestionResult,
     UpdateSuggestionStatus,
 )
+from app.schemas.resume import VersionSource
 from app.schemas.resume_document import ResumeDocument
 from app.services import version_service
 from app.services.analysis.provider import AnalysisProvider, get_providers
@@ -364,6 +365,49 @@ def suggestion_update_payload(suggestion: SuggestionRecord) -> dict[str, object]
         updated_at=suggestion.updated_at,
     )
     return payload.model_dump(by_alias=True, mode="json")
+
+
+def create_optimized_version(db: Session, analysis_id: str) -> ResumeVersion:
+    analysis = get_analysis(db, analysis_id)
+    if analysis.status == AnalysisStatus.PROCESSING.value:
+        raise AppError(
+            ErrorCode.ANALYSIS_IN_PROGRESS,
+            details={"analysisId": analysis_id},
+        )
+    handled_statuses = {
+        SuggestionStatus.ACCEPTED.value,
+        SuggestionStatus.REJECTED.value,
+        SuggestionStatus.EDITED.value,
+    }
+    if not any(item.status in handled_statuses for item in analysis.suggestions):
+        raise AppError(
+            ErrorCode.VALIDATION_ERROR,
+            "当前分析尚未确认任何优化建议。",
+            details={"analysisId": analysis_id},
+        )
+
+    base_version = version_service.get_version(db, analysis.resume_version_id)
+    draft = db.execute(
+        select(Draft).where(Draft.resume_id == base_version.resume_id)
+    ).scalar_one_or_none()
+    if draft is None or draft.base_version_id != base_version.id:
+        raise AppError(
+            ErrorCode.VALIDATION_ERROR,
+            "当前没有基于该分析版本的优化草稿。",
+            details={
+                "analysisId": analysis_id,
+                "resumeVersionId": base_version.id,
+            },
+        )
+
+    document = ResumeDocument.model_validate(draft.document)
+    return version_service.create_version(
+        db,
+        resume_id=base_version.resume_id,
+        source=VersionSource.OPTIMIZED,
+        document=document,
+        base_version_id=base_version.id,
+    )
 
 
 def create_payload(analysis: AnalysisRecord) -> dict[str, object]:
