@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from sqlalchemy import func, select
 
+from app.core.errors import AppError, ErrorCode
 from app.db.models import Analysis as AnalysisRecord
 from app.services.analysis import service
 from app.services.analysis.provider import get_providers
@@ -220,3 +221,36 @@ def test_retry_rejects_provider_that_did_not_fail(
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "ANALYSIS_NOT_RETRYABLE"
+
+
+def test_retry_atomically_rejects_stale_concurrent_claim(
+    client, resume_factory, session_factory, monkeypatch
+) -> None:
+    score_provider, _ = get_providers("mock")
+    monkeypatch.setattr(
+        service,
+        "get_providers",
+        lambda: (score_provider, FailingProvider("suggestionAgent")),
+    )
+    _, version_id = resume_factory()
+    created = client.post(
+        "/api/analyses",
+        json={"resumeVersionId": version_id, "jdText": JD_TEXT},
+    )
+    analysis_id = created.json()["data"]["id"]
+    assert client.get(f"/api/analyses/{analysis_id}").json()["data"]["status"] == "partial_failed"
+
+    with session_factory() as stale_session:
+        stale = service.get_analysis(stale_session, analysis_id)
+        assert stale.status == "partial_failed"
+        monkeypatch.setattr(service, "run_analysis", lambda *_args, **_kwargs: None)
+        claimed = client.post(
+            f"/api/analyses/{analysis_id}/retry",
+            json={"targets": ["suggestionAgent"]},
+        )
+        assert claimed.status_code == 202
+
+        with pytest.raises(AppError) as exc_info:
+            service.prepare_retry(stale_session, analysis_id, ["suggestionAgent"])
+
+    assert exc_info.value.code is ErrorCode.ANALYSIS_IN_PROGRESS

@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
+from app.core.errors import AppError, ErrorCode
+from app.db.models import Analysis, Draft, Suggestion
+from app.services.analysis import service
 from tests.test_analysis_api import JD_TEXT
 
 
@@ -115,3 +119,63 @@ def test_update_suggestion_rejects_invalid_payload(
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_concurrent_suggestion_update_does_not_overwrite_draft(
+    client, resume_factory, session_factory
+) -> None:
+    resume_id, version_id, first = _create_suggestion(client, resume_factory)
+    with session_factory() as setup_session:
+        analysis_id = setup_session.scalar(select(Analysis.id))
+        setup_session.add(
+            Suggestion(
+                id="suggestion_concurrent",
+                analysis_id=analysis_id,
+                section_id="section_project",
+                item_id="item_project_1",
+                target_field="content",
+                original="项目背景：面向求职场景的简历匹配系统。\n项目内容：负责简历解析、版本管理和导出服务。",
+                suggested="优化后的项目描述。",
+                reason="并发更新测试。",
+                status="pending",
+                edited_text=None,
+            )
+        )
+        setup_session.commit()
+
+    with session_factory() as stale_session:
+        stale_session.get(Suggestion, "suggestion_concurrent")
+        stale_draft = stale_session.scalar(
+            select(Draft).where(Draft.resume_id == resume_id)
+        )
+        assert stale_draft is not None
+
+        first_update = client.patch(
+            f"/api/suggestions/{first['id']}",
+            json={"status": "accepted", "editedText": None},
+        )
+        assert first_update.status_code == 200
+
+        with pytest.raises(AppError) as exc_info:
+            service.update_suggestion(
+                stale_session,
+                "suggestion_concurrent",
+                status="accepted",
+                edited_text=None,
+            )
+
+    assert exc_info.value.code is ErrorCode.SUGGESTION_STATE_CONFLICT
+    with session_factory() as verification_session:
+        second = verification_session.get(Suggestion, "suggestion_concurrent")
+        draft = verification_session.scalar(
+            select(Draft).where(Draft.resume_id == resume_id)
+        )
+        assert second is not None and second.status == "pending"
+        assert draft is not None and draft.base_version_id == version_id
+        items = {
+            item["id"]: item
+            for section in draft.document["sections"]
+            for item in section["items"]
+        }
+        assert items[first["itemId"]]["content"] == first["suggested"]
+        assert items["item_project_1"]["content"] != "优化后的项目描述。"

@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, ErrorCode
@@ -200,14 +201,35 @@ def prepare_retry(
             details={"analysisId": analysis_id, "failedProviders": failed},
         )
 
+    original_status = analysis.status
     for name in selected:
         state = _provider_state(states, name)
         state.status = ProviderStatus.QUEUED
         state.error_code = None
         state.error_message = None
-    analysis.status = AnalysisStatus.PROCESSING.value
-    analysis.provider_states = states.model_dump(by_alias=True, mode="json")
-    analysis.completed_at = None
+    result = db.execute(
+        update(AnalysisRecord)
+        .where(
+            AnalysisRecord.id == analysis_id,
+            AnalysisRecord.status == original_status,
+        )
+        .values(
+            status=AnalysisStatus.PROCESSING.value,
+            provider_states=states.model_dump(by_alias=True, mode="json"),
+            completed_at=None,
+            updated_at=utcnow(),
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:
+        db.rollback()
+        current = get_analysis(db, analysis_id)
+        code = (
+            ErrorCode.ANALYSIS_IN_PROGRESS
+            if current.status == AnalysisStatus.PROCESSING.value
+            else ErrorCode.ANALYSIS_NOT_RETRYABLE
+        )
+        raise AppError(code, details={"analysisId": analysis_id})
     db.commit()
     db.refresh(analysis)
     return analysis, selected
@@ -288,22 +310,45 @@ def update_suggestion(
         )
 
     if draft is None:
-        draft = Draft(
-            id=new_id("draft"),
-            resume_id=version.resume_id,
-            base_version_id=version.id,
-            document=document.to_storage(),
-            updated_at=changed_at,
+        db.add(
+            Draft(
+                id=new_id("draft"),
+                resume_id=version.resume_id,
+                base_version_id=version.id,
+                document=document.to_storage(),
+                updated_at=changed_at,
+            )
         )
-        db.add(draft)
     else:
-        draft.base_version_id = version.id
-        draft.document = document.to_storage()
-        draft.updated_at = changed_at
+        draft_result = db.execute(
+            update(Draft)
+            .where(Draft.id == draft.id, Draft.updated_at == draft.updated_at)
+            .values(
+                base_version_id=version.id,
+                document=document.to_storage(),
+                updated_at=changed_at,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if draft_result.rowcount != 1:
+            db.rollback()
+            raise AppError(
+                ErrorCode.SUGGESTION_STATE_CONFLICT,
+                "优化草稿已被其它请求更新，请重试。",
+                details={"suggestionId": suggestion_id},
+            )
     resume = db.get(Resume, version.resume_id)
     if resume is not None:
         resume.updated_at = changed_at
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise AppError(
+            ErrorCode.SUGGESTION_STATE_CONFLICT,
+            "优化草稿已被其它请求更新，请重试。",
+            details={"suggestionId": suggestion_id},
+        ) from exc
     db.refresh(suggestion)
     return suggestion
 
