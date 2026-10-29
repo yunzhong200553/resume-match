@@ -3,14 +3,43 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
 from tests.fixtures import write_reference_style_docx, write_scanned_pdf, write_text_pdf
+from app.services.parsing.pdf_extractor import _page_text
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MIME = "application/pdf"
+
+
+class _FakePdfPage:
+    def __init__(self, blocks: list[tuple[Any, ...]]) -> None:
+        self.blocks = blocks
+
+    def get_text(self, mode: str, *, sort: bool) -> list[tuple[Any, ...]]:
+        assert mode == "blocks"
+        assert sort is True
+        return self.blocks
+
+
+def test_pdf_visual_line_reconstruction_keeps_column_headers_together() -> None:
+    page = _FakePdfPage(
+        [
+            (72.0, 100.0, 180.0, 110.0, "示例项目\n", 0, 0),
+            (260.0, 100.0, 370.0, 110.0, "后端开发\n", 1, 0),
+            (440.0, 100.0, 530.0, 110.0, "2025.01 - 至今\n", 2, 0),
+            (72.0, 124.0, 82.0, 134.0, "•\n", 3, 0),
+            (90.0, 122.8, 460.0, 134.0, "负责接口开发。\n", 4, 0),
+        ]
+    )
+
+    assert _page_text(page) == (
+        "示例项目 后端开发 2025.01 - 至今\n"
+        "• 负责接口开发。"
+    )
 
 
 def test_a01_import_text_pdf_returns_editable_structure(

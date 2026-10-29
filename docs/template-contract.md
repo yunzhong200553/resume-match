@@ -39,7 +39,7 @@
 条目按「列」用 **制表位（Tab）** 对齐，不是表格：
 
 ```text
-南京理工大学 <Tab> 计算机科学与技术 本科 <Tab> 2019.09 - 2023.06
+示例大学 <Tab> 计算机科学与技术 本科 <Tab> 2019.09 - 2023.06
 ```
 
 各模块的列定义在 `app/services/export/renderer.py` 的 `FIELD_COLUMNS`：
@@ -85,7 +85,7 @@ cd backend
 脚本会打印实际提取到的格式，例如：
 
 ```text
-参考简历：...\private\陈仕安-南京理工大学.docx
+参考简历：...\private\参考简历.docx
 提取格式：字体=微软雅黑 标题=16.0pt 正文=10.5pt 颜色=#0F1115
 已生成：...\backend\assets\templates\classic_single_column.docx
 ```

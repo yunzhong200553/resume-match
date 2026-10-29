@@ -10,16 +10,19 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import __version__
 from app.api.routes import api_router
-from app.core.config import settings
+from app.core.config import REPO_ROOT, settings
+from app.core.response import envelope
 from app.core.errors import AppError, ErrorCode, error_payload
 from app.core.middleware import RequestIdMiddleware, current_request_id
 from app.db.migrate import run_migrations
 
 logger = logging.getLogger("resume_match")
+FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 
 DESCRIPTION = (
     "简历智造 ResumeMatch 后端。模块 A 负责简历构建、拆分、版本与共享导出；"
@@ -55,7 +58,13 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
 
     app.include_router(api_router, prefix="/api")
+    @app.get("/api/health", include_in_schema=False)
+    def health() -> dict[str, Any]:
+        return envelope({"service": "resume-match", "status": "ok"})
+
     _register_exception_handlers(app)
+    if (FRONTEND_DIST / "index.html").is_file():
+        app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
     return app
 
 

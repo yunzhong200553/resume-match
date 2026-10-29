@@ -12,8 +12,10 @@ from app.core.errors import AppError, ErrorCode
 from app.core.ids import new_id
 from app.db.models import ExportRecord, utcnow
 from app.schemas.export import ExportFormat, ExportStatus
+from app.schemas.resume_document import ResumeDocument
 from app.services import version_service
 from app.services.export import libreoffice, templates
+from app.services.export.pdf_renderer import render_pdf
 from app.services.export.renderer import render_resume
 
 MEDIA_TYPES = {
@@ -28,10 +30,11 @@ def create_export(
     version_id: str,
     template_id: str,
     export_format: ExportFormat,
+    layout_id: str | None = None,
 ) -> ExportRecord:
     version = version_service.get_version(db, version_id)
     spec = templates.get_template(template_id)
-    template_file = templates.template_path(spec)
+    templates.template_path(spec)
 
     record = ExportRecord(
         id=new_id("export"),
@@ -39,25 +42,22 @@ def create_export(
         template_id=spec.id,
         format=export_format.value,
         status=ExportStatus.PROCESSING.value,
+        layout_id=layout_id,
     )
     db.add(record)
     db.commit()
 
     settings.ensure_dirs()
-    docx_path = settings.export_dir / f"{record.id}.docx"
-
     try:
         document = version_service.load_document(version)
-        render_resume(
-            document,
-            template_path=template_file,
-            output_path=docx_path,
-            template=spec,
+        final_path = render_document(
+            document=document,
+            template_id=template_id,
+            output_dir=settings.export_dir,
+            basename=record.id,
+            export_format=export_format,
             resume_title=version.resume.title if version.resume else "",
         )
-        final_path = docx_path
-        if export_format is ExportFormat.PDF:
-            final_path = libreoffice.convert_to_pdf(docx_path, settings.export_dir)
     except AppError as error:
         _mark_failed(db, record, error)
         raise
@@ -72,6 +72,24 @@ def create_export(
     db.commit()
     db.refresh(record)
     return record
+
+
+def render_document(
+    *, document: ResumeDocument, template_id: str, output_dir: Path,
+    basename: str, export_format: ExportFormat, resume_title: str = "",
+) -> Path:
+    spec = templates.get_template(template_id)
+    document = document.for_output()
+    docx_path = output_dir / f"{basename}.docx"
+    render_resume(
+        document, template_path=templates.template_path(spec),
+        output_path=docx_path, template=spec, resume_title=resume_title,
+    )
+    if export_format is ExportFormat.DOCX:
+        return docx_path
+    if libreoffice.is_available():
+        return libreoffice.convert_to_pdf(docx_path, output_dir)
+    return render_pdf(document, output_path=output_dir / f"{basename}.pdf")
 
 
 def export_payload(record: ExportRecord) -> dict[str, Any]:

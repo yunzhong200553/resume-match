@@ -9,6 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -40,7 +41,10 @@ class Settings(BaseSettings):
     reference_resume_path: str = ""
 
     # 模块 B 预留，模块 A 不读取其值，仅保证配置项已就位
-    analysis_provider: str = "mock"
+    analysis_provider: str = "deepseek"
+    deepseek_api_key: str = Field(default="", repr=False)
+    deepseek_model: str = "deepseek-flash"
+    deepseek_timeout_seconds: int = 120
     coze_bot_id: str = ""
     coze_api_token: str = ""
 

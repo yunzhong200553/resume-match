@@ -8,6 +8,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 from pydantic.alias_generators import to_camel
+from app.schemas.resume_document import ResumeDocument
 
 
 class _CamelModel(BaseModel):
@@ -28,6 +29,10 @@ class ScoreLevel(str, Enum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
+
+
+def score_level_for(score: int) -> ScoreLevel:
+    return ScoreLevel.HIGH if score >= 80 else ScoreLevel.MEDIUM if score >= 60 else ScoreLevel.LOW
 
 
 class MatchLevel(str, Enum):
@@ -74,6 +79,26 @@ class CreateAnalysisRequest(_CamelModel):
         return value.strip()
 
 
+class RewriteSuggestionRequest(_CamelModel):
+    current_content: str = Field(max_length=30_000)
+    document: ResumeDocument | None = None
+
+
+class ConfirmPreviewRequest(_CamelModel):
+    original: str = Field(max_length=30_000)
+    replacement: NonBlankText = Field(max_length=30_000)
+    document: ResumeDocument
+
+
+class ConfirmSuggestionRequest(ConfirmPreviewRequest):
+    expected_updated_at: datetime
+
+    @field_validator("expected_updated_at")
+    @classmethod
+    def _normalize_expected_updated_at(cls, value: datetime) -> datetime:
+        return _as_utc(value)
+
+
 class ProviderState(_CamelModel):
     status: ProviderStatus
     attempts: int = Field(ge=0)
@@ -97,6 +122,72 @@ class ProviderStates(_CamelModel):
     suggestion_agent: ProviderState
 
 
+RetryTarget = Literal["scoreAgent", "suggestionAgent"]
+UpdateSuggestionStatus = Literal["accepted", "rejected", "edited"]
+
+
+class RetryAnalysisRequest(_CamelModel):
+    targets: list[RetryTarget] | None = None
+
+    @field_validator("targets")
+    @classmethod
+    def _validate_targets(
+        cls, value: list[RetryTarget] | None
+    ) -> list[RetryTarget] | None:
+        if value is not None and not value:
+            raise ValueError("targets 显式提供时不得为空")
+        if value is not None and len(value) != len(set(value)):
+            raise ValueError("targets 不得重复")
+        return value
+
+
+class RetryAnalysisResult(_CamelModel):
+    id: NonBlankText
+    status: Literal[AnalysisStatus.PROCESSING]
+    retrying_providers: list[RetryTarget]
+    providers: ProviderStates
+    updated_at: datetime
+
+    @field_validator("updated_at")
+    @classmethod
+    def _normalize_updated_at(cls, value: datetime) -> datetime:
+        return _as_utc(value)
+
+
+class UpdateSuggestionRequest(_CamelModel):
+    status: UpdateSuggestionStatus
+    edited_text: str | None = None
+
+    @field_validator("edited_text", mode="before")
+    @classmethod
+    def _strip_edited_text(cls, value: Any) -> Any:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_edited_text(self) -> "UpdateSuggestionRequest":
+        if self.status == "edited":
+            if self.edited_text is None or not self.edited_text:
+                raise ValueError("edited 状态必须提供非空 editedText")
+        elif self.edited_text is not None:
+            raise ValueError("accepted/rejected 状态的 editedText 必须为 null")
+        return self
+
+
+class UpdateSuggestionResult(_CamelModel):
+    id: NonBlankText
+    analysis_id: NonBlankText
+    section_id: NonBlankText
+    item_id: NonBlankText
+    status: UpdateSuggestionStatus
+    edited_text: str | None
+    updated_at: datetime
+
+    @field_validator("updated_at")
+    @classmethod
+    def _normalize_updated_at(cls, value: datetime) -> datetime:
+        return _as_utc(value)
+
+
 class ScoreDimension(_CamelModel):
     dimension: ScoreDimensionName
     weight: int = Field(gt=0, le=100)
@@ -114,8 +205,17 @@ class ItemMatch(_CamelModel):
     section_id: NonBlankText
     item_id: NonBlankText
     level: MatchLevel
+    score: int | None = Field(default=None, ge=0, le=100)
     matched_requirements: list[NonBlankText]
     reason: NonBlankText = Field(max_length=300)
+
+    @model_validator(mode="after")
+    def _validate_numeric_level(self) -> "ItemMatch":
+        if self.score is not None:
+            expected = MatchLevel(score_level_for(self.score).value)
+            if self.level is not expected:
+                raise ValueError("条目 level 与 score 区间不一致")
+        return self
 
 
 class MissingRequirement(_CamelModel):
@@ -260,13 +360,7 @@ def _validate_score_contract(
         raise ValueError("scoreBreakdown 必须包含四个固定维度及权重")
     if sum(item.score for item in score_breakdown) != overall_score:
         raise ValueError("四维评分之和必须等于 overallScore")
-    expected_level = (
-        ScoreLevel.HIGH
-        if overall_score >= 80
-        else ScoreLevel.MEDIUM
-        if overall_score >= 60
-        else ScoreLevel.LOW
-    )
+    expected_level = score_level_for(overall_score)
     if score_level is not expected_level:
         raise ValueError("scoreLevel 与 overallScore 区间不一致")
 

@@ -18,6 +18,7 @@ from app.schemas.resume import (
     SaveDraftRequest,
 )
 from app.services import resume_service, version_service
+from app.services.analysis import service as analysis_service
 from app.services.parsing.importer import import_resume_bytes
 from app.services.parsing.text_parser import parse_resume_text
 
@@ -28,10 +29,12 @@ def _resume_detail(db: Session, resume_id: str) -> dict[str, Any]:
     resume = resume_service.get_resume(db, resume_id)
     draft = resume_service.get_draft(db, resume_id)
     versions = version_service.list_versions(db, resume_id)
+    latest_analysis = analysis_service.latest_analysis(db, resume_id)
     return {
         "resume": resume.to_payload(),
         "draft": draft.to_payload() if draft else None,
         "versions": [version.to_summary() for version in versions],
+        "latestAnalysis": analysis_service.analysis_payload(latest_analysis) if latest_analysis else None,
     }
 
 
@@ -44,6 +47,11 @@ def create_resume(payload: CreateResumeRequest, db: DbSession) -> dict[str, Any]
 @router.get("/resumes", summary="获取历史简历列表")
 def list_resumes(db: DbSession) -> dict[str, Any]:
     return envelope({"items": [resume.to_payload() for resume in resume_service.list_resumes(db)]})
+
+
+@router.delete("/resumes/{resume_id}", status_code=204, summary="删除简历及其全部版本")
+def delete_resume(resume_id: str, db: DbSession) -> None:
+    resume_service.delete_resume(db, resume_id)
 
 
 @router.post("/resumes/parse-text", summary="拆分用户粘贴的完整文本")
@@ -116,6 +124,11 @@ def create_version(
         base_version_id=payload.base_version_id,
     )
     return envelope(version.to_payload())
+
+
+@router.post("/resumes/{resume_id}/snapshot", summary="为当前内容创建或复用内部快照")
+def snapshot_current(resume_id: str, db: DbSession) -> dict[str, Any]:
+    return envelope(version_service.snapshot_current(db, resume_id).to_payload())
 
 
 @router.get("/resumes/{resume_id}/versions", summary="获取历史版本列表")

@@ -6,11 +6,16 @@
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Any, Iterable
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
+
+PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+MONTH_RE = re.compile(r"^(\d{4})[-./年](\d{1,2})(?:月)?$")
 
 
 class SectionType(str, Enum):
@@ -54,12 +59,35 @@ class BasicInfo(_CamelModel):
     def _coerce_text(cls, value: Any) -> str:
         return "" if value is None else str(value).strip()
 
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, value: str) -> str:
+        normalized = re.sub(r"[\s-]", "", value)
+        if normalized and not PHONE_RE.fullmatch(normalized):
+            raise ValueError("电话必须是 11 位中国大陆手机号码")
+        return normalized
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email(cls, value: str) -> str:
+        if value and not EMAIL_RE.fullmatch(value):
+            raise ValueError("邮箱格式无效")
+        return value.lower()
+
+    @field_validator("location")
+    @classmethod
+    def _validate_location(cls, value: str) -> str:
+        if value and not re.fullmatch(r"[\u4e00-\u9fff]{2,12}", value):
+            raise ValueError("所在城市必须为中文城市名称")
+        return value
+
 
 class SectionItem(_CamelModel):
     id: str = Field(min_length=1)
     order: int = Field(ge=0)
     fields: dict[str, str] = Field(default_factory=dict)
     content: str = ""
+    hidden: bool = False
 
     @field_validator("fields", mode="before")
     @classmethod
@@ -68,7 +96,11 @@ class SectionItem(_CamelModel):
             return {}
         if not isinstance(value, dict):
             raise ValueError("fields 必须是字符串键值对")
-        return {str(key): "" if item is None else str(item) for key, item in value.items()}
+        fields = {str(key): "" if item is None else str(item).strip() for key, item in value.items()}
+        for key in ("startDate", "endDate", "date"):
+            if key in fields:
+                fields[key] = _normalize_month(fields[key], key)
+        return fields
 
     @field_validator("content", mode="before")
     @classmethod
@@ -85,6 +117,7 @@ class Section(_CamelModel):
     title: str = ""
     order: int = Field(ge=0)
     items: list[SectionItem] = Field(default_factory=list)
+    hidden: bool = False
 
     @model_validator(mode="after")
     def _validate(self) -> "Section":
@@ -136,6 +169,14 @@ class ResumeDocument(_CamelModel):
 
         return self.model_dump(by_alias=True, mode="json")
 
+    def for_output(self) -> "ResumeDocument":
+        sections = [
+            section.model_copy(update={"items": [item for item in section.items if not item.hidden]})
+            for section in self.ordered_sections()
+            if not section.hidden
+        ]
+        return normalize_orders(self.model_copy(update={"sections": sections}))
+
 
 def _assert_orders(orders: list[int], label: str) -> None:
     if sorted(orders) != list(range(len(orders))):
@@ -145,6 +186,22 @@ def _assert_orders(orders: list[int], label: str) -> None:
 def _assert_unique_ids(ids: list[str], label: str) -> None:
     if len(set(ids)) != len(ids):
         raise ValueError(f"{label} ID 在同一层级内不得重复")
+
+
+def _normalize_month(value: str, field_name: str) -> str:
+    if not value:
+        return ""
+    if field_name == "endDate" and value in {"至今", "现在", "目前"}:
+        return "至今"
+    if field_name == "date" and re.fullmatch(r"\d{4}", value):
+        return value
+    match = MONTH_RE.fullmatch(value)
+    if match is None:
+        raise ValueError(f"{field_name} 必须为 YYYY-MM 格式" + ("或“至今”" if field_name == "endDate" else ""))
+    year, month = int(match.group(1)), int(match.group(2))
+    if not 1900 <= year <= 2100 or not 1 <= month <= 12:
+        raise ValueError(f"{field_name} 不是有效月份")
+    return f"{year:04d}-{month:02d}"
 
 
 def normalize_orders(document: ResumeDocument) -> ResumeDocument:

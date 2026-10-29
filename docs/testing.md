@@ -1,5 +1,7 @@
 # 模块 A 测试说明
 
+最近一次全量执行结果与新增边界测试见 [2026-09-30 测试记录](测试记录-2026-09-30.md)。
+
 ## 1. 运行方式
 
 ```powershell
@@ -20,7 +22,7 @@ cd backend
 | A-04 | 超过 10 MB → `FILE_TOO_LARGE` | `tests/test_import_api.py` |
 | A-05 | 保存草稿并创建版本后，草稿可改、版本不变 | `tests/test_resume_api.py` |
 | A-06 | 使用模板导出 DOCX/PDF 且内容与所选版本一致 | `tests/test_export_api.py` |
-| I-01 | 禁用 Coze 后模块 A 仍可用（无分析路由） | `tests/test_mock_provider.py` |
+| I-01 | 默认 Mock Provider 下模块 A 与分析路由均可用 | `tests/test_mock_provider.py`、`tests/test_analysis_api.py` |
 | I-03 | 同版本 + 同模板 + 同格式 → 结果一致 | `tests/test_export_api.py` |
 
 ## 3. 其它测试组
@@ -31,6 +33,10 @@ cd backend
 | `test_text_parser.py` | 拆分规则：完整/缺失模块/乱序/重复标题/自定义模块/长文本/三行式/项目符号/契约外标签告警 |
 | `test_migrations.py` | Alembic `upgrade head`、`downgrade base`、唯一约束存在性 |
 | `test_mock_provider.py` | Mock 输出符合 README 7.3 契约，且引用的 ID 真实存在 |
+| `test_analysis_api.py` | 分析创建/查询、原子重试和后台 Session 隔离 |
+| `test_analysis_aggregation.py` | 双 Provider 汇总、初始化失败终态化和 Provider 输入脱敏 |
+| `test_suggestion_api.py` | 建议状态流、Draft 乐观并发控制和原版本不可变 |
+| `test_analysis_workflow.py` | Analysis 草稿归属、optimized 版本链和共享导出联调 |
 
 ## 4. 参考简历用例
 

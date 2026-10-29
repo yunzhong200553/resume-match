@@ -82,6 +82,10 @@ def get_providers(name: str | None = None) -> tuple[AnalysisProvider, AnalysisPr
     resolved = (name or settings.analysis_provider or "mock").lower()
     if resolved == "mock":
         return MockProvider("scoreAgent"), MockProvider("suggestionAgent")
+    if resolved == "deepseek":
+        from app.services.analysis.deepseek import DeepSeekProvider, ensure_configured
+        ensure_configured()
+        return DeepSeekProvider("scoreAgent"), DeepSeekProvider("suggestionAgent")
     if resolved == "coze":
         raise AppError(
             ErrorCode.ANALYSIS_PROVIDER_ERROR,
@@ -91,5 +95,5 @@ def get_providers(name: str | None = None) -> tuple[AnalysisProvider, AnalysisPr
     raise AppError(
         ErrorCode.ANALYSIS_PROVIDER_ERROR,
         f"未知的分析提供方：{resolved}",
-        details={"supported": ["mock", "coze"]},
+        details={"supported": ["deepseek", "mock", "coze"]},
     )

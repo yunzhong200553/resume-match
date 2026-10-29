@@ -122,6 +122,16 @@ def test_bullet_only_section_splits_per_bullet() -> None:
     assert items[0].fields["date"] == "2024"
 
 
+def test_private_use_and_circle_bullets_are_not_persisted() -> None:
+    text = "技能与工具\n 协作工具：腾讯文档\n● 编程：Python，Git"
+
+    outcome = parse_resume_text(text)
+    items = _section(outcome.document, SectionType.skill).items
+
+    assert [item.fields["category"] for item in items] == ["协作工具", "编程"]
+    assert all("" not in item.content and "●" not in item.content for item in items)
+
+
 def test_missing_modules_are_tolerated() -> None:
     text = "姓名：孙八\n教育背景\n北京大学 | 法学 | 本科 | 2018.09 - 2022.06"
 

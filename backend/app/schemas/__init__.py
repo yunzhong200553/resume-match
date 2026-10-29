@@ -7,8 +7,12 @@ from app.schemas.analysis import (
     ProviderState,
     ProviderStates,
     ProviderStatus,
+    RetryAnalysisRequest,
+    RetryAnalysisResult,
     Suggestion,
     SuggestionStatus,
+    UpdateSuggestionRequest,
+    UpdateSuggestionResult,
 )
 from app.schemas.export import ExportFormat, ExportRequest, ExportStatus
 from app.schemas.resume import (
@@ -41,6 +45,8 @@ __all__ = [
     "ProviderState",
     "ProviderStates",
     "ProviderStatus",
+    "RetryAnalysisRequest",
+    "RetryAnalysisResult",
     "ResumeDocument",
     "SaveDraftRequest",
     "Section",
@@ -48,6 +54,8 @@ __all__ = [
     "SectionType",
     "Suggestion",
     "SuggestionStatus",
+    "UpdateSuggestionRequest",
+    "UpdateSuggestionResult",
     "VersionSource",
     "normalize_orders",
 ]
