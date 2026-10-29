@@ -54,6 +54,7 @@ def client(tmp_path, session_factory, monkeypatch) -> TestClient:
     monkeypatch.setattr(settings, "assets_dir", BACKEND_DIR / "assets")
     monkeypatch.setattr(settings, "auto_migrate", False)
     monkeypatch.setattr(settings, "libreoffice_bin", "")
+    monkeypatch.setattr(settings, "analysis_provider", "mock")
 
     app = create_app()
 

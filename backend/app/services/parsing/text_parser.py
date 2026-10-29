@@ -65,7 +65,7 @@ BRACKET_TITLE_RE = re.compile(r"^[【\[]\s*(?P<title>[^】\]]{2,14})\s*[】\]]$"
 HEADING_TITLE_RE = re.compile(r"^#{1,4}\s*(?P<title>.{2,14})$")
 
 BULLET_RE = re.compile(
-    r"^\s*(?:[-–—•·▪◦●○*◆]|(?:\d{1,2}|[一二三四五六七八九十]{1,2})\s*[.、)）]|\(\d{1,2}\)|（\d{1,2}）)\s*"
+    r"^\s*(?:[-–—•·▪◦●○*◆]|(?:\d{1,2}|[一二三四五六七八九十]{1,2})\s*[.、)）]|\(\d{1,2}\)|（\d{1,2}）)\s*"
 )
 
 SEPARATOR_RE = re.compile(r"^[-=_~·*—\s]{3,}$")
@@ -470,7 +470,7 @@ class _ResumeTextParser:
         # 三行式（名称行 / 角色行 / 纯日期行）时，把标题行合并成一行再解析字段
         group_end = _header_group_end(draft, 0)
         header_lines = draft[: group_end + 1] if group_end is not None else draft[:1]
-        first_line = " | ".join(header_lines)
+        first_line = BULLET_RE.sub("", " | ".join(header_lines)).strip()
         rest = [
             BULLET_RE.sub("", line).strip() for line in draft[len(header_lines) :] if line.strip()
         ]
@@ -638,7 +638,7 @@ def _group_by_starts(lines: list[str], starts: list[int]) -> list[list[str]]:
 
 
 def _tokenize(text: str) -> list[str]:
-    # 注意：不把中点「·」当分隔符，中文机构名常用它（如「成都问问大象·柴大官人项目组」）
+    # 中点可能属于机构名称，不作为分隔符。
     tokens = []
     for token in re.split(r"[|｜•]|\s+", text):
         cleaned = token.strip(" \t·|/-–—,，、。;；")
@@ -723,7 +723,48 @@ def _assign_fields(
 def _split_segments(line: str) -> list[str]:
     """把「姓名：张三 | 手机：138…」这类合并行拆成若干片段。"""
 
-    return [segment for segment in re.split(r"[|｜]|\s{2,}", line) if segment.strip()]
+    segments = [segment for segment in re.split(r"[|｜]|\s{2,}", line) if segment.strip()]
+    return [
+        labeled_segment
+        for segment in segments
+        for labeled_segment in _split_inline_labels(segment)
+    ]
+
+
+_INLINE_INFO_LABELS = tuple(
+    sorted(
+        {
+            *LABEL_MAP,
+            *CONTACT_LABELS,
+            "性别",
+            "出生年月",
+            "微信名",
+            "微信号",
+            "意向说明",
+            "籍贯",
+        },
+        key=len,
+        reverse=True,
+    )
+)
+_INLINE_INFO_LABEL_RE = re.compile(
+    rf"(?P<label>{'|'.join(re.escape(label) for label in _INLINE_INFO_LABELS)})\s*[：:]",
+    re.IGNORECASE,
+)
+
+
+def _split_inline_labels(segment: str) -> list[str]:
+    """分离 PDF 坐标块合并后同行的多个「标签：值」。"""
+
+    matches = list(_INLINE_INFO_LABEL_RE.finditer(segment))
+    if len(matches) < 2:
+        return [segment]
+    values = [
+        segment[matches[index].start() : matches[index + 1].start()].strip()
+        for index in range(len(matches) - 1)
+    ]
+    values.append(segment[matches[-1].start() :].strip())
+    return [value for value in values if value]
 
 
 def _split_label(line: str) -> tuple[str | None, str]:

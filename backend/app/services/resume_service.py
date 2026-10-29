@@ -38,6 +38,14 @@ def get_resume(db: Session, resume_id: str) -> Resume:
     return resume
 
 
+def delete_resume(db: Session, resume_id: str) -> None:
+    """删除简历及其草稿、版本和关联记录。"""
+
+    resume = get_resume(db, resume_id)
+    db.delete(resume)
+    db.commit()
+
+
 def get_draft(db: Session, resume_id: str) -> Draft | None:
     statement = select(Draft).where(Draft.resume_id == resume_id)
     return db.execute(statement).scalar_one_or_none()
@@ -76,6 +84,7 @@ def save_draft(
     else:
         draft.document = normalized.to_storage()
         draft.base_version_id = base_version_id
+        draft.analysis_id = None
     resume.updated_at = utcnow()  # 让简历列表按最近编辑排序
     db.commit()
     db.refresh(draft)

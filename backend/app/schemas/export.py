@@ -6,6 +6,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
+from app.schemas.resume_document import ResumeDocument
 
 
 class ExportFormat(str, Enum):
@@ -26,3 +27,8 @@ class _CamelModel(BaseModel):
 class ExportRequest(_CamelModel):
     template_id: str = Field(min_length=1)
     format: ExportFormat = ExportFormat.DOCX
+
+
+class PreviewRequest(_CamelModel):
+    document: ResumeDocument
+    template_id: str = "classic_single_column"

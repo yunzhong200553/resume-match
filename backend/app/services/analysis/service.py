@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -38,6 +41,15 @@ from app.services.analysis.provider import AnalysisProvider, get_providers
 
 JD_TEXT_MIN_LENGTH = 50
 JD_TEXT_MAX_LENGTH = 20_000
+
+
+def run_analysis_task(
+    bind: Engine | Connection,
+    analysis_id: str,
+    targets: list[RetryTarget] | None = None,
+) -> None:
+    with Session(bind=bind) as task_db:
+        run_analysis(task_db, analysis_id, targets=targets)
 
 
 def create_analysis(
@@ -76,6 +88,14 @@ def get_analysis(db: Session, analysis_id: str) -> AnalysisRecord:
     return analysis
 
 
+def latest_analysis(db: Session, resume_id: str) -> AnalysisRecord | None:
+    return db.execute(
+        select(AnalysisRecord).join(ResumeVersion, AnalysisRecord.resume_version_id == ResumeVersion.id)
+        .where(ResumeVersion.resume_id == resume_id)
+        .order_by(AnalysisRecord.created_at.desc()).limit(1)
+    ).scalar_one_or_none()
+
+
 def run_analysis(
     db: Session,
     analysis_id: str,
@@ -85,13 +105,6 @@ def run_analysis(
     analysis = get_analysis(db, analysis_id)
     version = version_service.get_version(db, analysis.resume_version_id)
     document = version_service.load_document(version)
-    provider_pair = providers or get_providers()
-    provider_by_name = {provider.name: provider for provider in provider_pair}
-    if set(provider_by_name) != {"scoreAgent", "suggestionAgent"}:
-        raise AppError(
-            ErrorCode.ANALYSIS_PROVIDER_ERROR,
-            "必须同时配置 scoreAgent 和 suggestionAgent。",
-        )
     target_names: list[RetryTarget] = targets or ["scoreAgent", "suggestionAgent"]
 
     states = ProviderStates.model_validate(analysis.provider_states)
@@ -104,12 +117,26 @@ def run_analysis(
     analysis.provider_states = states.model_dump(by_alias=True, mode="json")
     db.commit()
 
+    try:
+        provider_pair = providers or get_providers()
+        provider_by_name = {provider.name: provider for provider in provider_pair}
+        if set(provider_by_name) != {"scoreAgent", "suggestionAgent"}:
+            raise AppError(
+                ErrorCode.ANALYSIS_PROVIDER_ERROR,
+                "必须同时配置 scoreAgent 和 suggestionAgent。",
+            )
+    except Exception as exc:
+        for name in target_names:
+            _mark_failed(_provider_state(states, name), exc)
+        return _finalize_analysis(db, analysis, states)
+
     document_payload = document.to_storage()
+    provider_document = _provider_document(document.for_output().to_storage())
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {
             name: executor.submit(
                 provider_by_name[name].analyze,
-                document=document_payload,
+                document=deepcopy(provider_document),
                 jd_text=analysis.jd_text,
             )
             for name in target_names
@@ -159,22 +186,7 @@ def run_analysis(
         except Exception as exc:
             _mark_failed(states.suggestion_agent, exc)
 
-    succeeded = sum(
-        state.status is ProviderStatus.SUCCEEDED
-        for state in (states.score_agent, states.suggestion_agent)
-    )
-    analysis.status = (
-        AnalysisStatus.COMPLETED.value
-        if succeeded == 2
-        else AnalysisStatus.PARTIAL_FAILED.value
-        if succeeded == 1
-        else AnalysisStatus.FAILED.value
-    )
-    analysis.provider_states = states.model_dump(by_alias=True, mode="json")
-    analysis.completed_at = utcnow()
-    db.commit()
-    db.refresh(analysis)
-    return analysis
+    return _finalize_analysis(db, analysis, states)
 
 
 def prepare_retry(
@@ -273,9 +285,21 @@ def update_suggestion(
     draft = db.execute(
         select(Draft).where(Draft.resume_id == version.resume_id)
     ).scalar_one_or_none()
+    if draft is not None and draft.base_version_id != version.id:
+        raise AppError(
+            ErrorCode.SUGGESTION_STATE_CONFLICT,
+            "当前草稿已基于其他版本，不能应用旧分析建议。",
+            details={"suggestionId": suggestion_id},
+        )
+    if draft is not None and draft.analysis_id not in (None, analysis.id):
+        raise AppError(
+            ErrorCode.SUGGESTION_STATE_CONFLICT,
+            "当前优化草稿属于其他分析，不能混合应用建议。",
+            details={"suggestionId": suggestion_id},
+        )
     document = (
         ResumeDocument.model_validate(draft.document)
-        if draft is not None and draft.base_version_id == version.id
+        if draft is not None
         else version_service.load_document(version)
     )
     found = document.find_item(suggestion.section_id, suggestion.item_id)
@@ -316,6 +340,7 @@ def update_suggestion(
                 id=new_id("draft"),
                 resume_id=version.resume_id,
                 base_version_id=version.id,
+                analysis_id=analysis.id,
                 document=document.to_storage(),
                 updated_at=changed_at,
             )
@@ -323,9 +348,14 @@ def update_suggestion(
     else:
         draft_result = db.execute(
             update(Draft)
-            .where(Draft.id == draft.id, Draft.updated_at == draft.updated_at)
+            .where(
+                Draft.id == draft.id,
+                Draft.updated_at == draft.updated_at,
+                or_(Draft.analysis_id.is_(None), Draft.analysis_id == analysis.id),
+            )
             .values(
                 base_version_id=version.id,
+                analysis_id=analysis.id,
                 document=document.to_storage(),
                 updated_at=changed_at,
             )
@@ -367,6 +397,107 @@ def suggestion_update_payload(suggestion: SuggestionRecord) -> dict[str, object]
     return payload.model_dump(by_alias=True, mode="json")
 
 
+def rewrite_suggestion(
+    db: Session, suggestion_id: str, current_content: str, document: ResumeDocument | None = None,
+) -> dict[str, str]:
+    from app.core.config import settings
+    from app.services.analysis.deepseek import rewrite_content
+    from app.services import resume_service
+
+    if settings.analysis_provider.lower() != "deepseek":
+        raise AppError(ErrorCode.ANALYSIS_PROVIDER_ERROR, "AI 改写需要启用 DeepSeek，演示数据不能用于真实改写。", status_code=503)
+    suggestion = db.get(SuggestionRecord, suggestion_id)
+    if suggestion is None:
+        raise AppError(ErrorCode.SUGGESTION_NOT_FOUND)
+    if suggestion.status != SuggestionStatus.PENDING.value:
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "该建议已处理，请重新分析。")
+    analysis = get_analysis(db, suggestion.analysis_id)
+    version = version_service.get_version(db, analysis.resume_version_id)
+    current = document if document is not None else resume_service.get_draft_document(db, version.resume_id)
+    found = current.find_item(suggestion.section_id, suggestion.item_id) if current else None
+    if found is None or found[1].content != current_content:
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "当前内容已变化，请保存后重新生成改写。")
+    result = rewrite_content(
+        fields=found[1].fields,
+        content=current_content,
+        jd_text=analysis.jd_text,
+        advice=f"{suggestion.reason}\n参考表达（并非新增事实依据）：{suggestion.suggested}",
+    )
+    return {"original": current_content, "rewritten": result.rewritten, "explanation": result.explanation}
+
+
+def confirm_preview(
+    db: Session, suggestion_id: str, *, original: str, replacement: str, document: ResumeDocument,
+) -> ResumeDocument:
+    suggestion = db.get(SuggestionRecord, suggestion_id)
+    if suggestion is None:
+        raise AppError(ErrorCode.SUGGESTION_NOT_FOUND)
+    found = document.find_item(suggestion.section_id, suggestion.item_id)
+    if found is None or found[1].content != original:
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "预览原文已修改，请重新生成改写。")
+    result = db.execute(
+        update(SuggestionRecord)
+        .where(SuggestionRecord.id == suggestion_id, SuggestionRecord.status == SuggestionStatus.PENDING.value)
+        .values(status=SuggestionStatus.EDITED.value, edited_text=replacement, updated_at=utcnow())
+        .returning(SuggestionRecord.id)
+    )
+    if result.scalar_one_or_none() is None:
+        db.rollback()
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "该建议已处理，请重新分析。")
+    found[1].content = replacement
+    db.commit()
+    return document
+
+
+def confirm_suggestion(
+    db: Session, suggestion_id: str, *, original: str, replacement: str,
+    document: ResumeDocument, expected_updated_at: datetime,
+) -> Draft:
+    suggestion = db.get(SuggestionRecord, suggestion_id)
+    if suggestion is None:
+        raise AppError(ErrorCode.SUGGESTION_NOT_FOUND)
+    if suggestion.status != SuggestionStatus.PENDING.value:
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "建议已经处理，请重新分析。")
+    analysis = get_analysis(db, suggestion.analysis_id)
+    version = version_service.get_version(db, analysis.resume_version_id)
+    draft = db.execute(select(Draft).where(Draft.resume_id == version.resume_id)).scalar_one_or_none()
+    if draft is None:
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "当前简历内容已不存在，请刷新。")
+    expected = expected_updated_at.astimezone(timezone.utc).replace(tzinfo=None)
+    if draft.updated_at != expected:
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "简历已在其他页面更新，请重新打开后生成改写。")
+    current = ResumeDocument.model_validate(draft.document).find_item(suggestion.section_id, suggestion.item_id)
+    proposed = document.find_item(suggestion.section_id, suggestion.item_id)
+    if current is None or proposed is None or current[1].content != original or proposed[1].content != original:
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "原文已修改或条目已删除，请重新生成 AI 改写。")
+    proposed[1].content = replacement
+    result = db.execute(
+        update(SuggestionRecord)
+        .where(SuggestionRecord.id == suggestion.id, SuggestionRecord.status == SuggestionStatus.PENDING.value)
+        .values(status=SuggestionStatus.EDITED.value, edited_text=replacement, updated_at=utcnow())
+        .returning(SuggestionRecord.id)
+    )
+    if result.scalar_one_or_none() is None:
+        db.rollback()
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT)
+    changed = db.execute(
+        update(Draft)
+        .where(Draft.id == draft.id, Draft.updated_at == expected)
+        .values(document=document.to_storage(), analysis_id=analysis.id, updated_at=utcnow())
+        .returning(Draft.id)
+        .execution_options(synchronize_session=False)
+    )
+    if changed.scalar_one_or_none() is None:
+        db.rollback()
+        raise AppError(ErrorCode.SUGGESTION_STATE_CONFLICT, "简历已被其他请求修改，请刷新后重试。")
+    resume = db.get(Resume, version.resume_id)
+    if resume is not None:
+        resume.updated_at = utcnow()
+    db.commit()
+    db.refresh(draft)
+    return draft
+
+
 def create_optimized_version(db: Session, analysis_id: str) -> ResumeVersion:
     analysis = get_analysis(db, analysis_id)
     if analysis.status == AnalysisStatus.PROCESSING.value:
@@ -390,7 +521,11 @@ def create_optimized_version(db: Session, analysis_id: str) -> ResumeVersion:
     draft = db.execute(
         select(Draft).where(Draft.resume_id == base_version.resume_id)
     ).scalar_one_or_none()
-    if draft is None or draft.base_version_id != base_version.id:
+    if (
+        draft is None
+        or draft.base_version_id != base_version.id
+        or draft.analysis_id != analysis.id
+    ):
         raise AppError(
             ErrorCode.VALIDATION_ERROR,
             "当前没有基于该分析版本的优化草稿。",
@@ -506,6 +641,14 @@ def _document_items(document: dict[str, Any]) -> dict[tuple[str, str], dict[str,
     }
 
 
+def _provider_document(document: dict[str, Any]) -> dict[str, Any]:
+    basic_info = document.get("basicInfo", {})
+    return {
+        "basicInfo": {"jobTarget": basic_info.get("jobTarget", "")},
+        "sections": deepcopy(document.get("sections", [])),
+    }
+
+
 def _validate_score_references(
     result: ScoreProviderResult, document: dict[str, Any]
 ) -> None:
@@ -548,10 +691,38 @@ def _mark_failed(state: ProviderState, exc: Exception) -> None:
         "PROVIDER_TIMEOUT"
         if isinstance(exc, TimeoutError)
         or isinstance(exc, AppError) and exc.code is ErrorCode.ANALYSIS_TIMEOUT
+        else ErrorCode.ANALYSIS_PROVIDER_ERROR.value
+        if isinstance(exc, AppError) and exc.code is ErrorCode.ANALYSIS_PROVIDER_ERROR
         else "INVALID_PROVIDER_RESPONSE"
     )
     state.error_message = (
         "分析服务调用超时。"
         if state.error_code == "PROVIDER_TIMEOUT"
+        else exc.message
+        if state.error_code == ErrorCode.ANALYSIS_PROVIDER_ERROR.value
+        and isinstance(exc, AppError)
         else "分析服务返回了无效结果。"
     )
+
+
+def _finalize_analysis(
+    db: Session,
+    analysis: AnalysisRecord,
+    states: ProviderStates,
+) -> AnalysisRecord:
+    succeeded = sum(
+        state.status is ProviderStatus.SUCCEEDED
+        for state in (states.score_agent, states.suggestion_agent)
+    )
+    analysis.status = (
+        AnalysisStatus.COMPLETED.value
+        if succeeded == 2
+        else AnalysisStatus.PARTIAL_FAILED.value
+        if succeeded == 1
+        else AnalysisStatus.FAILED.value
+    )
+    analysis.provider_states = states.model_dump(by_alias=True, mode="json")
+    analysis.completed_at = utcnow()
+    db.commit()
+    db.refresh(analysis)
+    return analysis
