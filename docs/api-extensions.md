@@ -31,7 +31,7 @@
 
 ## 2. 实现的接口清单
 
-模块 A 与共享导出服务共实现 13 个端点：
+模块 A、模块 B 与共享导出服务共实现 18 个端点：
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -48,8 +48,13 @@
 | POST | `/api/resume-versions/{versionId}/exports` | 创建导出任务（201） |
 | GET | `/api/exports/{exportId}` | 导出状态 |
 | GET | `/api/exports/{exportId}/download` | 下载文件（非 JSON，直接返回文件流） |
+| POST | `/api/analyses` | 创建 JD 分析（202） |
+| GET | `/api/analyses/{analysisId}` | 查询分析状态和结果 |
+| POST | `/api/analyses/{analysisId}/retry` | 仅重试失败 Provider（202） |
+| PATCH | `/api/suggestions/{suggestionId}` | 接受、拒绝或编辑建议 |
+| POST | `/api/analyses/{analysisId}/versions` | 保存 optimized 不可变版本（201） |
 
-未实现的接口：`/api/analyses*`、`/api/suggestions*`（模块 B）。
+分析接口当前默认使用 Mock Provider；真实 Coze Adapter 与持久化任务队列尚未实现，详见 [JD 分析接入概述](JD分析接口/接入概述.md)。
 
 ## 3. 约定补充
 
@@ -59,3 +64,9 @@
 - 文件上传同时校验扩展名、MIME 与大小（≤ 10 MB），通用类型
   （`application/octet-stream`、`application/zip`）被接受，但要能通过解析校验。
 - `ResumeDocument` 使用 `extra="forbid"`：任何契约外字段都会被拒绝，包括 Coze 返回的多余字段。
+- 当前导出创建接口为同步实现，成功时返回 201 和 `completed`。`简历导出接口`目录中的 202/queued/轮询流程是异步目标契约，前后端联调当前应以本文件和实际响应为准；切换异步任务前必须同步升级实现、测试与文档。
+
+## 4. 当前工程限制
+
+- `ResumeVersion.version` 通过读取当前最大版本号后加一生成，适用于当前 SQLite 单写部署；多进程或多写部署前必须增加数据库级序号分配或唯一约束冲突重试。
+- `POST /api/analyses/{analysisId}/versions` 每次成功调用都会创建一个新版本，目前不接受幂等键。客户端应在请求完成前禁用重复提交；服务端幂等保存需在后续契约中补充。

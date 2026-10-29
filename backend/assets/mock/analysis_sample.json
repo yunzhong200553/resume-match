@@ -14,6 +14,7 @@
         "sectionId": "section_example",
         "itemId": "item_example",
         "level": "high",
+        "score": 86,
         "matchedRequirements": ["Python", "FastAPI"],
         "reason": "条目包含与 JD 直接相关的后端技术。"
       }

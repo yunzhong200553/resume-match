@@ -149,6 +149,8 @@ activemq-data/
 
 # Environments
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -218,20 +220,28 @@ __marimo__/
 .streamlit/secrets.toml
 
 # ---- ResumeMatch 本机数据与个人信息（README 第 10 节）----
+node_modules/
 # 真实简历 / 真实 JD：只允许放在本机，禁止提交
-/*.docx
-/*.pdf
-/*.doc
+*.docx
+*.pdf
+*.doc
+# Only the reviewed, anonymized export templates are public assets.
+!backend/assets/templates/*.docx
 
 # 上传原件、导出产物与本地数据库
 backend/data/
 backend/storage/
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
 
 # 本机备注
 notes/
 private/
-

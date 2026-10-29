@@ -47,6 +47,63 @@ def test_create_resume_accepts_basic_info(client: TestClient) -> None:
     assert draft["basicInfo"]["jobTarget"] == "后端开发工程师"
 
 
+def test_basic_info_normalizes_phone_email_and_month_fields(client: TestClient) -> None:
+    response = client.post(
+        "/api/resumes",
+        json={
+            "title": "格式化校验",
+            "basicInfo": {
+                "phone": "138 0000-0000",
+                "email": "TEST@EXAMPLE.COM",
+                "location": "杭州",
+            },
+        },
+    )
+    assert response.status_code == 201
+    info = response.json()["data"]["draft"]["document"]["basicInfo"]
+    assert info["phone"] == "13800000000"
+    assert info["email"] == "test@example.com"
+
+    resume_id = response.json()["data"]["resume"]["id"]
+    document = {
+        "basicInfo": info,
+        "sections": [
+            {
+                "id": "section_project",
+                "type": "project",
+                "title": "项目经历",
+                "order": 0,
+                "items": [
+                    {
+                        "id": "item_project_1",
+                        "order": 0,
+                        "fields": {"startDate": "2025.1", "endDate": "目前"},
+                        "content": "",
+                    }
+                ],
+            }
+        ],
+    }
+    saved = client.put(f"/api/resumes/{resume_id}/draft", json={"document": document})
+    assert saved.status_code == 200
+    fields = saved.json()["data"]["draft"]["document"]["sections"][0]["items"][0]["fields"]
+    assert fields == {"startDate": "2025-01", "endDate": "至今"}
+
+
+@pytest.mark.parametrize(
+    "basic_info",
+    [
+        {"phone": "123456"},
+        {"email": "not-an-email"},
+        {"location": "Hangzhou"},
+    ],
+)
+def test_basic_info_rejects_invalid_contact_formats(client: TestClient, basic_info) -> None:
+    response = client.post("/api/resumes", json={"title": "格式错误", "basicInfo": basic_info})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
 def test_list_resumes_returns_created_items(client: TestClient, resume_factory) -> None:
     resume_factory(title="第一份")
     resume_factory(title="第二份")
@@ -63,6 +120,17 @@ def test_resume_not_found(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "RESUME_NOT_FOUND"
+
+
+def test_delete_resume_removes_it_from_library(client: TestClient) -> None:
+    resume_id = client.post("/api/resumes", json={"title": "待删除简历"}).json()["data"]["resume"]["id"]
+
+    deleted = client.delete(f"/api/resumes/{resume_id}")
+
+    assert deleted.status_code == 204
+    assert client.get(f"/api/resumes/{resume_id}").status_code == 404
+    listed = client.get("/api/resumes").json()["data"]["items"]
+    assert all(item["id"] != resume_id for item in listed)
 
 
 def test_draft_rejects_invalid_order(client: TestClient) -> None:
@@ -168,6 +236,30 @@ def test_version_created_from_draft_without_document(client: TestClient, resume_
     assert payload["source"] == "import"
     assert payload["version"] == 1
     assert payload["parentVersionId"] is None
+    detail = client.get(f"/api/resumes/{resume_id}").json()["data"]
+    assert detail["draft"]["baseVersionId"] == payload["id"]
+
+
+def test_version_with_explicit_document_does_not_rebase_current_draft(
+    client: TestClient, resume_factory
+) -> None:
+    resume_id, base_version_id = resume_factory()
+    document = sample_document_dict()
+    document["basicInfo"]["name"] = "旁支版本"
+
+    created = client.post(
+        f"/api/resumes/{resume_id}/versions",
+        json={
+            "source": "manual",
+            "baseVersionId": base_version_id,
+            "document": document,
+        },
+    )
+
+    assert created.status_code == 201
+    detail = client.get(f"/api/resumes/{resume_id}").json()["data"]
+    assert detail["draft"]["baseVersionId"] == base_version_id
+    assert detail["draft"]["document"]["basicInfo"]["name"] == "李小明"
 
 
 def test_version_without_draft_requires_document(client: TestClient, session_factory) -> None:

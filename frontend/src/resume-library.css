@@ -1,0 +1,58 @@
+.resume-card {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e1e7f0;
+  border-radius: 12px;
+  color: #1f3150;
+  display: flex;
+  padding: 5px;
+}
+
+.resume-card:hover {
+  border-color: #9fc4f2;
+  box-shadow: 0 8px 20px #1a4c8520;
+}
+
+.resume-open {
+  align-items: center;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  flex: 1;
+  gap: 13px;
+  min-width: 0;
+  padding: 12px;
+  text-align: left;
+}
+
+.resume-open > span:nth-child(2) {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.resume-open small {
+  color: #8290a7;
+  font-size: 11px;
+}
+
+.resume-open i {
+  color: #7a96bf;
+  font-size: 20px;
+  font-style: normal;
+  margin-left: auto;
+}
+
+.resume-delete {
+  background: #fff1f2;
+  border: 1px solid #ffd9dd;
+  border-radius: 7px;
+  color: #b54653;
+  font-size: 11px;
+  margin-right: 7px;
+  padding: 7px 8px;
+}
+
+.resume-delete:hover:not(:disabled) {
+  background: #ffe3e6;
+}

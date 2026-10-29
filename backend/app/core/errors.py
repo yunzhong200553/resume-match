@@ -35,6 +35,9 @@ class ErrorCode(str, Enum):
     EXPORT_NOT_FOUND = "EXPORT_NOT_FOUND"
     TEMPLATE_NOT_FOUND = "TEMPLATE_NOT_FOUND"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    LAYOUT_NOT_FOUND = "LAYOUT_NOT_FOUND"
+    LAYOUT_NAME_CONFLICT = "LAYOUT_NAME_CONFLICT"
+    LAYOUT_STATE_CONFLICT = "LAYOUT_STATE_CONFLICT"
 
 
 STATUS_BY_CODE: Mapping[ErrorCode, int] = {
@@ -58,6 +61,9 @@ STATUS_BY_CODE: Mapping[ErrorCode, int] = {
     ErrorCode.EXPORT_NOT_FOUND: 404,
     ErrorCode.TEMPLATE_NOT_FOUND: 404,
     ErrorCode.INTERNAL_ERROR: 500,
+    ErrorCode.LAYOUT_NOT_FOUND: 404,
+    ErrorCode.LAYOUT_NAME_CONFLICT: 409,
+    ErrorCode.LAYOUT_STATE_CONFLICT: 409,
 }
 
 DEFAULT_MESSAGE_BY_CODE: Mapping[ErrorCode, str] = {
@@ -81,6 +87,9 @@ DEFAULT_MESSAGE_BY_CODE: Mapping[ErrorCode, str] = {
     ErrorCode.EXPORT_NOT_FOUND: "导出记录不存在。",
     ErrorCode.TEMPLATE_NOT_FOUND: "导出模板不存在。",
     ErrorCode.INTERNAL_ERROR: "服务内部错误。",
+    ErrorCode.LAYOUT_NOT_FOUND: "简历排版不存在。",
+    ErrorCode.LAYOUT_NAME_CONFLICT: "同一份简历下已存在同名排版，请修改名称或打开已有排版继续编辑。",
+    ErrorCode.LAYOUT_STATE_CONFLICT: "排版已在其他页面更新，请重新打开后再保存。",
 }
 
 

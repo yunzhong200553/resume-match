@@ -217,7 +217,7 @@ def test_unknown_export_download(client: TestClient) -> None:
     assert response.json()["error"]["code"] == "EXPORT_NOT_FOUND"
 
 
-def test_pdf_without_libreoffice_fails_but_is_recorded(
+def test_pdf_without_libreoffice_uses_local_renderer(
     client: TestClient, session_factory, resume_factory, monkeypatch
 ) -> None:
     _, version_id = resume_factory()
@@ -228,14 +228,21 @@ def test_pdf_without_libreoffice_fails_but_is_recorded(
         json={"templateId": TEMPLATE_ID, "format": "pdf"},
     )
 
-    assert response.status_code == 503
-    assert response.json()["error"]["code"] == "EXPORT_DEPENDENCY_MISSING"
+    assert response.status_code == 201, response.text
+    data = response.json()["data"]
+    assert data["status"] == "completed"
+    assert data["downloadUrl"]
+
+    download = client.get(data["downloadUrl"])
+    assert download.status_code == 200
+    assert download.content.startswith(b"%PDF")
+    assert len(download.content) > 1000
 
     with session_factory() as session:
         records = list(session.execute(select(ExportRecord)).scalars().all())
     assert len(records) == 1
-    assert records[0].status == "failed"
-    assert records[0].error_code == "EXPORT_DEPENDENCY_MISSING"
+    assert records[0].status == "completed"
+    assert records[0].error_code is None
 
 
 def test_incomplete_export_cannot_be_downloaded(

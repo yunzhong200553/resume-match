@@ -29,8 +29,14 @@ def create_version(
 
     resume_service.get_resume(db, resume_id)
 
+    source_draft = None
     if document is None:
-        document = resume_service.get_draft_document(db, resume_id)
+        source_draft = resume_service.get_draft(db, resume_id)
+        document = (
+            ResumeDocument.model_validate(source_draft.document)
+            if source_draft is not None
+            else None
+        )
         if document is None:
             raise AppError(
                 ErrorCode.VALIDATION_ERROR,
@@ -62,6 +68,9 @@ def create_version(
         document=document.to_storage(),
     )
     db.add(version)
+    if source_draft is not None:
+        source_draft.base_version_id = version.id
+        source_draft.analysis_id = None
     db.commit()
     db.refresh(version)
     return version
@@ -75,6 +84,21 @@ def list_versions(db: Session, resume_id: str) -> list[ResumeVersion]:
         .order_by(ResumeVersion.version.asc())
     )
     return list(db.execute(statement).scalars().all())
+
+
+def snapshot_current(db: Session, resume_id: str) -> ResumeVersion:
+    """分析、导出使用内部快照；普通保存仅更新同一份可编辑内容。"""
+    resume_service.get_resume(db, resume_id)
+    draft = resume_service.get_draft(db, resume_id)
+    if draft is None:
+        raise AppError(ErrorCode.VALIDATION_ERROR, "当前简历没有可编辑内容。")
+    document = ResumeDocument.model_validate(draft.document)
+    latest = resume_service.latest_version(db, resume_id)
+    if latest is not None and latest.document == document.to_storage():
+        return latest
+    return create_version(
+        db, resume_id=resume_id, source=VersionSource.MANUAL, document=document
+    )
 
 
 def get_version(db: Session, version_id: str) -> ResumeVersion:

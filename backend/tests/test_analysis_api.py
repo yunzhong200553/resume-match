@@ -81,6 +81,35 @@ def test_create_and_get_processing_analysis(client, resume_factory) -> None:
     assert data["providers"]["suggestionAgent"]["status"] == "succeeded"
 
 
+def test_background_analysis_uses_independent_session(
+    client, resume_factory, monkeypatch
+) -> None:
+    request_sessions = []
+    task_sessions = []
+    original_create = service.create_analysis
+
+    def capture_create(db, **kwargs):
+        request_sessions.append(db)
+        return original_create(db, **kwargs)
+
+    def capture_run(db, _analysis_id, providers=None, targets=None):
+        del providers, targets
+        task_sessions.append(db)
+
+    monkeypatch.setattr(service, "create_analysis", capture_create)
+    monkeypatch.setattr(service, "run_analysis", capture_run)
+    _, version_id = resume_factory()
+
+    response = client.post(
+        "/api/analyses",
+        json={"resumeVersionId": version_id, "jdText": JD_TEXT},
+    )
+
+    assert response.status_code == 202
+    assert len(request_sessions) == len(task_sessions) == 1
+    assert request_sessions[0] is not task_sessions[0]
+
+
 def test_duplicate_input_creates_independent_analyses(client, resume_factory) -> None:
     _, version_id = resume_factory()
     payload = {"resumeVersionId": version_id, "jdText": JD_TEXT}

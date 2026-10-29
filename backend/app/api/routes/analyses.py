@@ -8,10 +8,22 @@ from fastapi import APIRouter, BackgroundTasks
 
 from app.api.deps import DbSession
 from app.core.response import envelope
+from app.core.config import settings
 from app.schemas.analysis import CreateAnalysisRequest, RetryAnalysisRequest
 from app.services.analysis import service
 
 router = APIRouter(prefix="/analyses", tags=["JD 分析"])
+
+
+@router.get("/configuration", summary="读取 AI 配置状态（不返回密钥）")
+def configuration() -> dict[str, Any]:
+    provider = settings.analysis_provider.lower()
+    return envelope({
+        "provider": provider,
+        "model": settings.deepseek_model if provider == "deepseek" else None,
+        "configured": bool(settings.deepseek_api_key.strip()) if provider == "deepseek" else provider == "mock",
+        "demo": provider == "mock",
+    })
 
 
 @router.post("", status_code=202, summary="创建 JD 分析")
@@ -20,13 +32,16 @@ def create_analysis(
     background_tasks: BackgroundTasks,
     db: DbSession,
 ) -> dict[str, Any]:
+    if settings.analysis_provider.lower() == "deepseek":
+        from app.services.analysis.deepseek import ensure_configured
+        ensure_configured()
     analysis = service.create_analysis(
         db,
         resume_version_id=payload.resume_version_id,
         jd_text=payload.jd_text,
     )
     response = envelope(service.create_payload(analysis))
-    background_tasks.add_task(service.run_analysis, db, analysis.id)
+    background_tasks.add_task(service.run_analysis_task, db.get_bind(), analysis.id)
     return response
 
 
@@ -44,7 +59,12 @@ def retry_analysis(
 ) -> dict[str, Any]:
     analysis, targets = service.prepare_retry(db, analysis_id, payload.targets)
     response = envelope(service.retry_payload(analysis, targets))
-    background_tasks.add_task(service.run_analysis, db, analysis.id, None, targets)
+    background_tasks.add_task(
+        service.run_analysis_task,
+        db.get_bind(),
+        analysis.id,
+        targets,
+    )
     return response
 
 

@@ -1,0 +1,179 @@
+.flash-fill {
+  display: grid;
+  gap: 22px;
+}
+
+.flash-steps {
+  align-items: center;
+  color: #97a4b8;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 10px;
+}
+
+.flash-steps span.active {
+  color: #3277ce;
+}
+
+.flash-steps i {
+  background: #dce4ef;
+  height: 1px;
+  width: 48px;
+}
+
+.flash-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.source-tabs {
+  background: #f1f4f9;
+  border-radius: 9px;
+  display: flex;
+  padding: 3px;
+}
+
+.source-tabs button {
+  background: transparent;
+  border-radius: 7px;
+  color: #718098;
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.source-tabs button.selected {
+  background: #fff;
+  box-shadow: 0 1px 5px #1f3a5b18;
+  color: #2c68b4;
+  font-weight: 700;
+}
+
+.drop-zone {
+  align-items: center;
+  background: #fafcff;
+  border: 1.5px dashed #aac8ee;
+  border-radius: 12px;
+  color: #617490;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  justify-content: center;
+  min-height: 190px;
+  padding: 25px;
+  text-align: center;
+}
+
+.drop-zone:hover {
+  background: #f3f8ff;
+  border-color: #5190dc;
+}
+
+.drop-zone input {
+  display: none;
+}
+
+.drop-zone strong {
+  color: #315a8c;
+  font-size: 16px;
+}
+
+.drop-zone small {
+  max-width: 380px;
+}
+
+.upload-icon {
+  align-items: center;
+  background: #e6f1ff;
+  border-radius: 50%;
+  color: #347bce;
+  display: flex;
+  font-size: 25px;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.paste-form {
+  display: grid;
+  gap: 11px;
+}
+
+.paste-form input,
+.paste-form textarea,
+.blank-form input {
+  background: #fafbfe;
+  border: 1px solid #dce3ed;
+  border-radius: 8px;
+  outline: none;
+  padding: 13px;
+  width: 100%;
+}
+
+.paste-form textarea {
+  line-height: 1.6;
+  min-height: 150px;
+  resize: vertical;
+}
+
+.paste-form button,
+.blank-form button {
+  background: #2c73d3;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  justify-self: end;
+  padding: 11px 16px;
+}
+
+.blank-form {
+  display: grid;
+  gap: 14px;
+}
+
+.blank-form p {
+  color: #718097;
+  margin: 0;
+}
+
+.blank-form > div {
+  display: flex;
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .flash-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .source-tabs {
+    width: 100%;
+  }
+
+  .source-tabs button {
+    flex: 1;
+    padding: 8px 3px;
+  }
+
+  .flash-steps {
+    font-size: 10px;
+    gap: 5px;
+  }
+
+  .flash-steps i {
+    width: 20px;
+  }
+
+  .blank-form > div {
+    flex-direction: column;
+  }
+
+  .blank-form button,
+  .paste-form button {
+    justify-self: stretch;
+  }
+}

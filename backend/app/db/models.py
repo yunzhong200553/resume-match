@@ -49,6 +49,9 @@ class Resume(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    layouts: Mapped[list["ResumeLayout"]] = relationship(
+        back_populates="resume", cascade="all, delete-orphan",
+    )
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -117,6 +120,9 @@ class Draft(Base):
         unique=True,
     )
     base_version_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    analysis_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("analyses.id", ondelete="SET NULL"), nullable=True
+    )
     document: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=utcnow, onupdate=utcnow, nullable=False
@@ -202,6 +208,33 @@ class Suggestion(Base):
     analysis: Mapped[Analysis] = relationship(back_populates="suggestions")
 
 
+class ResumeLayout(Base):
+    """同一份简历下独立保存的岗位排版。"""
+
+    __tablename__ = "resume_layouts"
+    __table_args__ = (UniqueConstraint("resume_id", "name", name="uq_resume_layout_name"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    resume_id: Mapped[str] = mapped_column(String(64), ForeignKey("resumes.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    jd_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    document: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    analysis_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("analyses.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+    resume: Mapped[Resume] = relationship(back_populates="layouts")
+
+    def to_payload(self, *, include_document: bool = True) -> dict[str, Any]:
+        payload = {
+            "id": self.id, "resumeId": self.resume_id, "name": self.name,
+            "jdText": self.jd_text, "analysisId": self.analysis_id,
+            "createdAt": to_iso(self.created_at), "updatedAt": to_iso(self.updated_at),
+        }
+        if include_document:
+            payload["document"] = self.document
+        return payload
+
+
 class ExportRecord(Base):
     """一次导出任务及其产物位置。"""
 
@@ -214,6 +247,8 @@ class ExportRecord(Base):
         nullable=False,
         index=True,
     )
+    layout_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("resume_layouts.id", ondelete="SET NULL"), nullable=True)
+    layout: Mapped[ResumeLayout | None] = relationship()
     template_id: Mapped[str] = mapped_column(String(64), nullable=False)
     format: Mapped[str] = mapped_column(String(10), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
